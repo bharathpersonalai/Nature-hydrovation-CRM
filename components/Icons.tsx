@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export const DashboardIcon = ({ className }: { className?: string }) => (
@@ -53,13 +54,6 @@ export const XIcon = ({ className }: { className?: string }) => (
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
-);
-
-// FIX: Added style prop to allow dynamic styling of the icon.
-export const WaterDropIcon = ({ className, style }: { className?: string; style?: React.CSSProperties; }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
-        <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" />
-    </svg>
 );
 
 export const SunIcon = ({ className }: { className?: string }) => (
@@ -301,5 +295,13 @@ export const AlertCircleIcon = ({ className }: { className?: string }) => (
         <circle cx="12" cy="12" r="10" />
         <line x1="12" y1="8" x2="12" y2="12" />
         <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+);
+
+export const MenuIcon = ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <line x1="4" y1="12" x2="20" y2="12" />
+        <line x1="4" y1="6" x2="20" y2="6" />
+        <line x1="4" y1="18" x2="20" y2="18" />
     </svg>
 );

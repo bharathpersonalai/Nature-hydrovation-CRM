@@ -1,10 +1,11 @@
+
 import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
 import { CrmContext } from '../App';
-import { Customer, Order, PaymentMethod, Referral, Product } from '../types';
+import { Customer, Order, PaymentMethod, Referral } from '../types';
 import Modal from './Modal';
 import Invoice from './Invoice';
 import Receipt from './Receipt';
-import { PlusCircleIcon, DownloadIcon, FileTextIcon, PrinterIcon, CheckCircleIcon, PdfIcon, ReceiptIcon, PencilIcon, GiftIcon, XIcon, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon, UploadCloudIcon, ImageIcon, TicketIcon, ShareIcon } from './Icons';
+import { PlusCircleIcon, DownloadIcon, FileTextIcon, PrinterIcon, CheckCircleIcon, PdfIcon, ReceiptIcon, PencilIcon, GiftIcon, XIcon, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon, UploadCloudIcon, ImageIcon, TicketIcon, ShareIcon, TrashIcon } from './Icons';
 import ReferralSlip from './ReferralSlip';
 
 const emptyCustomer = {
@@ -29,7 +30,7 @@ const Customers: React.FC = () => {
     if (!context) return null;
     const { 
         customers, products, orders, referrals, leads, addCustomer, updateCustomer, addOrder,
-        showToast, updateOrderStatus, brandingSettings, viewingItem, clearViewingItem 
+        showToast, updateInvoiceStatus, brandingSettings, viewingItem, clearViewingItem 
     } = context;
 
     const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
@@ -39,7 +40,10 @@ const Customers: React.FC = () => {
     const [activeCustomerTab, setActiveCustomerTab] = useState<CustomerDetailTab>('orders');
     const [viewingOrder, setViewingOrder] = useState<(Order & { newReferralCode?: string }) | null>(null);
     const [customerFormData, setCustomerFormData] = useState<typeof emptyCustomer | Customer>(emptyCustomer);
-    const [newOrderData, setNewOrderData] = useState({ productId: '', quantity: 1 });
+    
+    // New Order State (Multi-item)
+    const [orderItems, setOrderItems] = useState<{productId: string, quantity: number, discount: number}[]>([{ productId: '', quantity: 1, discount: 0 }]);
+
     const [searchQuery, setSearchQuery] = useState('');
     
     // Segmentation State
@@ -51,15 +55,12 @@ const Customers: React.FC = () => {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CreditCard);
     const [sortConfig, setSortConfig] = useState<{ key: SortableKey; direction: 'ascending' | 'descending' } | null>(null);
     
-    
     // Referral Slip State
     const [viewingReferralSlip, setViewingReferralSlip] = useState<Referral | null>(null);
     const [referralSlipBackground, setReferralSlipBackground] = useState<string | null>(null);
     const slipContainerRef = useRef<HTMLDivElement>(null);
     const backgroundUploadRef = useRef<HTMLInputElement>(null);
 
-    const productSelectRef = useRef<HTMLSelectElement>(null);
-    
     const handleViewCustomer = (customer: Customer) => {
         setSelectedCustomer(customer);
         setCustomerModalView('details');
@@ -87,12 +88,6 @@ const Customers: React.FC = () => {
             }
         }
     }, [viewingItem, customers, clearViewingItem]);
-
-    useEffect(() => {
-        if (customerModalView === 'newOrder' && productSelectRef.current) {
-            setTimeout(() => productSelectRef.current?.focus(), 100);
-        }
-    }, [customerModalView]);
     
     const filteredCustomers = useMemo(() => {
         let tempCustomers = [...customers];
@@ -110,7 +105,7 @@ const Customers: React.FC = () => {
         if (purchaseHistoryFilter !== 'all' || locationFilter) {
             tempCustomers = tempCustomers.filter(customer => {
                 const customerOrders = orders.filter(o => o.customerId === customer.id);
-                const totalSpent = customerOrders.reduce((sum, o) => sum + (o.salePrice * o.quantity), 0);
+                const totalSpent = customerOrders.reduce((sum, o) => sum + ((o.salePrice - (o.discount || 0)) * o.quantity), 0);
                 const orderCount = customerOrders.length;
 
                 let purchaseMatch = true;
@@ -119,7 +114,7 @@ const Customers: React.FC = () => {
                 else if (purchaseHistoryFilter === 'first-time') purchaseMatch = orderCount === 1;
 
                 const locationMatch = !locationFilter || customer.address.toLowerCase().includes(locationFilter.toLowerCase());
-                
+
                 return purchaseMatch && locationMatch;
             });
         }
@@ -132,11 +127,8 @@ const Customers: React.FC = () => {
         if (sortConfig) {
             sortableItems.sort((a, b) => {
                 const key = sortConfig.key;
-                let valA, valB;
-                
-                valA = a[key] || '';
-                valB = b[key] || '';
-                
+                const valA = a[key] || '';
+                const valB = b[key] || '';
                 const comparison = String(valA).localeCompare(String(valB));
     
                 return sortConfig.direction === 'ascending' ? comparison : -comparison;
@@ -183,6 +175,20 @@ const Customers: React.FC = () => {
         };
     }, [referrals, selectedCustomer]);
 
+    // Calculate dynamic totals for New Order modal
+    const newOrderTotals = useMemo(() => {
+        let subtotal = 0;
+        orderItems.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (product && item.quantity > 0) {
+                subtotal += (product.sellingPrice - (item.discount || 0)) * item.quantity;
+            }
+        });
+        const tax = subtotal * 0.18;
+        const total = subtotal + tax;
+        return { subtotal, tax, total };
+    }, [orderItems, products]);
+
 
     const handleCustomerFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -203,18 +209,34 @@ const Customers: React.FC = () => {
         setViewingReferralSlip(null);
     };
     
-    const handleOrderInputChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setNewOrderData(prev => ({ ...prev, [name]: name === 'quantity' ? parseInt(value) : value }));
+    const handleAddOrderItem = () => {
+        setOrderItems([...orderItems, { productId: '', quantity: 1, discount: 0 }]);
+    };
+
+    const handleRemoveOrderItem = (index: number) => {
+        if (orderItems.length > 1) {
+            const newItems = [...orderItems];
+            newItems.splice(index, 1);
+            setOrderItems(newItems);
+        }
+    };
+
+    const handleOrderItemChange = (index: number, field: 'productId' | 'quantity' | 'discount', value: string | number) => {
+        const newItems = [...orderItems];
+        // @ts-ignore
+        newItems[index][field] = value;
+        setOrderItems(newItems);
     };
 
     const handleAddOrderSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (selectedCustomer && newOrderData.productId && newOrderData.quantity > 0) {
+        // Filter out empty rows
+        const validItems = orderItems.filter(item => item.productId && item.quantity > 0);
+
+        if (selectedCustomer && validItems.length > 0) {
             const result = addOrder({
                 customerId: selectedCustomer.id,
-                productId: newOrderData.productId,
-                quantity: newOrderData.quantity,
+                items: validItems,
             });
 
             if (result.success && result.order) {
@@ -222,23 +244,56 @@ const Customers: React.FC = () => {
                 const orderWithCode = { ...result.order, newReferralCode: result.newReferralCode };
                 setViewingOrder(orderWithCode);
                 setCustomerModalView('viewInvoice');
-                setNewOrderData({ productId: '', quantity: 1 });
+                setOrderItems([{ productId: '', quantity: 1, discount: 0 }]);
             } else {
                 showToast(result.message, 'error');
             }
         } else {
-            showToast("Please select a product and quantity.", 'error');
+            showToast("Please add at least one product.", 'error');
         }
     };
     
-    const getCustomerOrders = (customerId: string): Order[] => {
-        return orders.filter(order => order.customerId === customerId).sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+    const getCustomerOrdersGrouped = (customerId: string) => {
+        const customerOrders = orders.filter(order => order.customerId === customerId);
+        // Group by Invoice Number
+        const grouped: Record<string, { invoiceNumber: string, date: string, status: string, method: string, total: number, representativeOrder: Order }> = {};
+        
+        customerOrders.forEach(order => {
+            if (!grouped[order.invoiceNumber]) {
+                grouped[order.invoiceNumber] = {
+                    invoiceNumber: order.invoiceNumber,
+                    date: order.orderDate,
+                    status: order.paymentStatus,
+                    method: order.paymentMethod || '-',
+                    total: 0,
+                    representativeOrder: order
+                };
+            }
+            grouped[order.invoiceNumber].total += ((order.salePrice - (order.discount || 0)) * order.quantity);
+        });
+
+        return Object.values(grouped).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     };
     
-    const getCustomerPaymentHistory = (customerId: string): Order[] => {
-        return orders
-            .filter(o => o.customerId === customerId && o.paymentStatus === 'Paid' && o.paymentDate)
-            .sort((a, b) => new Date(b.paymentDate!).getTime() - new Date(a.paymentDate!).getTime());
+    const getCustomerPaymentHistory = (customerId: string) => {
+        const customerOrders = orders.filter(order => order.customerId === customerId && order.paymentStatus === 'Paid' && order.paymentDate);
+        // Group by Invoice Number for payment history as well
+        const grouped: Record<string, { invoiceNumber: string, paymentDate: string, method: string, total: number, representativeOrder: Order }> = {};
+
+        customerOrders.forEach(order => {
+            if (!grouped[order.invoiceNumber]) {
+                grouped[order.invoiceNumber] = {
+                    invoiceNumber: order.invoiceNumber,
+                    paymentDate: order.paymentDate!,
+                    method: order.paymentMethod || '-',
+                    total: 0,
+                    representativeOrder: order
+                };
+            }
+            grouped[order.invoiceNumber].total += ((order.salePrice - (order.discount || 0)) * order.quantity);
+        });
+
+        return Object.values(grouped).sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
     };
 
     const handleExportCustomers = () => {
@@ -263,7 +318,7 @@ const Customers: React.FC = () => {
             customer.email,
             customer.phone,
             customer.address,
-            new Date(customer.createdAt).toLocaleDateString(),
+            new Date(customer.createdAt).toLocaleDateString()
         ].map(escapeCsvField).join(','));
 
         const csvContent = [headers.join(','), ...rows].join('\n');
@@ -301,7 +356,8 @@ const Customers: React.FC = () => {
 
     const handleConfirmPayment = () => {
         if (orderToPay) {
-            updateOrderStatus(orderToPay.id, 'Paid', selectedPaymentMethod);
+            // Payment method selection is in the modal
+            updateInvoiceStatus(orderToPay.invoiceNumber, 'Paid', selectedPaymentMethod);
             const updatedOrder = { 
                 ...orderToPay, 
                 paymentStatus: 'Paid' as const, 
@@ -309,7 +365,11 @@ const Customers: React.FC = () => {
                 paymentMethod: selectedPaymentMethod
             };
             setViewingOrder(updatedOrder);
-            showToast(`Payment of ₹${(updatedOrder.salePrice * updatedOrder.quantity * 1.05).toFixed(2)} recorded via ${selectedPaymentMethod}.`);
+            // Calculate total for toast message
+            const invoiceOrders = orders.filter(o => o.invoiceNumber === orderToPay.invoiceNumber);
+            const invoiceTotal = invoiceOrders.reduce((sum, o) => sum + ((o.salePrice - (o.discount || 0)) * o.quantity), 0) * 1.18;
+            
+            showToast(`Payment of ₹${invoiceTotal.toFixed(2)} recorded via ${selectedPaymentMethod}.`);
             setCustomerModalView('viewReceipt');
             setIsPaymentModalOpen(false);
             setOrderToPay(null);
@@ -355,7 +415,6 @@ const Customers: React.FC = () => {
         if (!element) return;
         const referrerName = selectedCustomer?.name.replace(/\s/g, '_') || 'customer';
 
-        // Get the dimensions of the slip component to create a perfectly sized PDF
         const slipWidth = element.offsetWidth;
         const slipHeight = element.offsetHeight;
         
@@ -366,7 +425,6 @@ const Customers: React.FC = () => {
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { 
                 unit: 'px', 
-                // Use the exact dimensions of the component
                 format: [slipWidth, slipHeight], 
                 orientation: slipWidth > slipHeight ? 'landscape' : 'portrait' 
             }
@@ -407,6 +465,11 @@ const Customers: React.FC = () => {
             console.error('Error sharing slip:', error);
             showToast('An error occurred while trying to share.', 'error');
         }
+    };
+    
+    // Helper to get all orders for a given invoice
+    const getOrdersByInvoice = (invoiceNumber: string) => {
+        return orders.filter(o => o.invoiceNumber === invoiceNumber);
     };
 
     return (
@@ -473,6 +536,7 @@ const Customers: React.FC = () => {
                                         <SortableHeader sortKey="name">Name</SortableHeader>
                                         <SortableHeader sortKey="email">Email</SortableHeader>
                                         <SortableHeader sortKey="phone">Phone</SortableHeader>
+                                        <SortableHeader sortKey="address">Address</SortableHeader>
                                         <SortableHeader sortKey="createdAt">Customer Since</SortableHeader>
                                         <th scope="col" className="px-6 py-3 uppercase font-medium">Actions</th>
                                     </tr>
@@ -483,6 +547,7 @@ const Customers: React.FC = () => {
                                             <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100">{customer.name}</td>
                                             <td className="px-6 py-4">{customer.email}</td>
                                             <td className="px-6 py-4">{customer.phone}</td>
+                                            <td className="px-6 py-4 truncate max-w-xs">{customer.address}</td>
                                             <td className="px-6 py-4">{new Date(customer.createdAt).toLocaleDateString()}</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-4">
@@ -519,7 +584,6 @@ const Customers: React.FC = () => {
                     <input type="email" name="email" placeholder="Email" value={customerFormData.email} onChange={(e) => setCustomerFormData(p => ({...p, email: e.target.value}))} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" required />
                     <input type="tel" name="phone" placeholder="Phone" value={customerFormData.phone} onChange={(e) => setCustomerFormData(p => ({...p, phone: e.target.value}))} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" />
                     <input type="text" name="address" placeholder="Address" value={customerFormData.address} onChange={(e) => setCustomerFormData(p => ({...p, address: e.target.value}))} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" />
-                    
                     {!editingCustomer && (
                         <>
                             <input type="text" name="source" placeholder="Source (e.g. Walk-in)" value={customerFormData.source || ''} onChange={(e) => setCustomerFormData(p => ({...p, source: e.target.value}))} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" />
@@ -543,7 +607,7 @@ const Customers: React.FC = () => {
                         customerModalView === 'viewReceipt' ? `Receipt ${viewingOrder?.invoiceNumber.replace('INV', 'RCPT')}`:
                         `Referral Slip for ${selectedCustomer.name}`
                     }
-                    size={['viewInvoice', 'viewReceipt', 'viewReferralSlip'].includes(customerModalView) ? '2xl' : '3xl'}
+                    size={['viewInvoice', 'viewReceipt', 'viewReferralSlip', 'newOrder'].includes(customerModalView) ? '2xl' : '3xl'}
                     footer={
                       (customerModalView === 'viewInvoice' && viewingOrder) ? (
                         <>
@@ -608,7 +672,6 @@ const Customers: React.FC = () => {
                                 <p className="text-sm text-slate-600 dark:text-slate-400">{selectedCustomer.phone}</p>
                                 <p className="text-sm text-slate-600 dark:text-slate-400">{selectedCustomer.address}</p>
                             </div>
-
                             <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
                                 <div className="flex justify-between items-center mb-2">
                                      <div className="border-b border-slate-200 dark:border-slate-700 w-full">
@@ -656,7 +719,7 @@ const Customers: React.FC = () => {
                                 </div>
                                 <div className="mt-4">
                                 {activeCustomerTab === 'orders' && (
-                                    getCustomerOrders(selectedCustomer.id).length > 0 ? (
+                                    getCustomerOrdersGrouped(selectedCustomer.id).length > 0 ? (
                                         <div className="overflow-x-auto max-h-60 border rounded-lg dark:border-slate-700">
                                             <table className="w-full text-sm text-left">
                                                 <thead className="text-xs text-slate-600 dark:text-slate-400 uppercase sticky top-0 bg-slate-50 dark:bg-slate-700/80 backdrop-blur-sm">
@@ -669,25 +732,25 @@ const Customers: React.FC = () => {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                                    {getCustomerOrders(selectedCustomer.id).map(order => (
-                                                        <tr key={order.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                                            <td className="px-2 py-2 whitespace-nowrap">{order.invoiceNumber}</td>
+                                                    {getCustomerOrdersGrouped(selectedCustomer.id).map(group => (
+                                                        <tr key={group.invoiceNumber} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                                            <td className="px-2 py-2 whitespace-nowrap font-medium text-slate-900 dark:text-slate-100 font-medium text-slate-900 dark:text-slate-100">{group.invoiceNumber}</td>
                                                             <td className="px-2 py-2">
-                                                                <span className={`px-2 py-0.5 text-xs rounded-full ${order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'}`}>
-                                                                    {order.paymentStatus}
+                                                                <span className={`px-2 py-0.5 text-xs rounded-full ${group.status === 'Paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'}`}>
+                                                                    {group.status}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-2 py-2 text-slate-500 dark:text-slate-400 text-xs">{order.paymentMethod || '-'}</td>
-                                                            <td className="px-2 py-2 text-right font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">₹{(order.salePrice * order.quantity).toFixed(2)}</td>
+                                                            <td className="px-2 py-2 text-slate-500 dark:text-slate-400 text-xs">{group.method}</td>
+                                                            <td className="px-2 py-2 text-right font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">₹{(group.total * 1.18).toFixed(2)}</td>
                                                             <td className="px-2 py-2 text-center">
                                                                 <div className="flex items-center justify-center gap-2">
-                                                                    <button onClick={() => handleViewInvoice(order)} className="text-brand-primary hover:underline text-xs font-semibold">
+                                                                    <button onClick={() => handleViewInvoice(group.representativeOrder)} className="text-brand-primary hover:underline text-xs font-semibold">
                                                                         Invoice
                                                                     </button>
-                                                                    {order.paymentStatus === 'Paid' && (
+                                                                    {group.status === 'Paid' && (
                                                                         <>
                                                                             <span className="text-slate-300 dark:text-slate-600">|</span>
-                                                                            <button onClick={() => handleViewReceipt(order)} className="text-brand-secondary hover:underline text-xs font-semibold">
+                                                                            <button onClick={() => handleViewReceipt(group.representativeOrder)} className="text-brand-secondary hover:underline text-xs font-semibold">
                                                                                 Receipt
                                                                             </button>
                                                                         </>
@@ -712,18 +775,18 @@ const Customers: React.FC = () => {
                                                 <thead className="text-xs text-slate-600 dark:text-slate-400 uppercase sticky top-0 bg-slate-50 dark:bg-slate-700/80 backdrop-blur-sm">
                                                     <tr>
                                                         <th className="px-4 py-2 font-medium">Payment Date</th>
-                                                        <th className="px-4 py-2 font-medium">Invoice #</th>
+                                                        <th className="px-4 py-2 font-medium">Receipt #</th>
                                                         <th className="px-4 py-2 font-medium">Method</th>
                                                         <th className="px-4 py-2 font-medium text-right">Amount Paid</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                                    {getCustomerPaymentHistory(selectedCustomer.id).map(order => (
-                                                        <tr key={order.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                                            <td className="px-4 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{new Date(order.paymentDate!).toLocaleString()}</td>
-                                                            <td className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">{order.invoiceNumber}</td>
-                                                            <td className="px-4 py-2">{order.paymentMethod}</td>
-                                                            <td className="px-4 py-2 text-right font-semibold text-brand-secondary whitespace-nowrap">₹{(order.salePrice * order.quantity * 1.05).toFixed(2)}</td>
+                                                    {getCustomerPaymentHistory(selectedCustomer.id).map(group => (
+                                                        <tr key={group.invoiceNumber} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                                            <td className="px-4 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{new Date(group.paymentDate).toLocaleString()}</td>
+                                                            <td className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">{group.invoiceNumber.replace('INV', 'RCPT')}</td>
+                                                            <td className="px-4 py-2 text-slate-700 dark:text-slate-300">{group.method}</td>
+                                                            <td className="px-4 py-2 text-right font-semibold text-brand-secondary whitespace-nowrap">₹{(group.total * 1.18).toFixed(2)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -805,7 +868,7 @@ const Customers: React.FC = () => {
                                                             {customerReferralStats.referrals.map(referral => (
                                                                 <tr key={referral.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                                                                     <td className="px-4 py-2 text-slate-500 dark:text-slate-400">{new Date(referral.date).toLocaleDateString()}</td>
-                                                                    <td className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">{customers.find(c => c.id === referral.refereeId)?.name || 'N/A'}</td>
+                                                                    <td className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">{context.customers.find(c => c.id === referral.refereeId)?.name || 'N/A'}</td>
                                                                     <td className="px-4 py-2">
                                                                         <span className={`px-2 py-0.5 text-xs rounded-full ${referral.status === 'RewardPaid' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'}`}>
                                                                             {referral.status}
@@ -835,21 +898,96 @@ const Customers: React.FC = () => {
                     )}
                     {customerModalView === 'newOrder' && (
                         <form onSubmit={handleAddOrderSubmit} className="space-y-4">
-                            <div>
-                                <label htmlFor="productId" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Product</label>
-                                <select ref={productSelectRef} name="productId" id="productId" value={newOrderData.productId} onChange={handleOrderInputChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" required>
-                                    <option value="" disabled>Select a product</option>
-                                    {products.filter(p => p.quantity > 0).map(product => (
-                                        <option key={product.id} value={product.id}>
-                                            {product.name} ({product.quantity} in stock)
-                                        </option>
-                                    ))}
-                                </select>
+                            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg space-y-3 max-h-80 overflow-y-auto">
+                                <div className="flex justify-between items-center mb-2">
+                                    <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Order Items</h4>
+                                    <button type="button" onClick={handleAddOrderItem} className="text-xs flex items-center gap-1 text-brand-primary font-medium hover:underline">
+                                        <PlusCircleIcon className="w-3 h-3" /> Add Item
+                                    </button>
+                                </div>
+                                
+                                <div className="flex gap-2 px-1 mb-1">
+                                    <div className="flex-grow text-xs font-medium text-slate-500 dark:text-slate-400">Product</div>
+                                    <div className="w-20 text-xs font-medium text-slate-500 dark:text-slate-400">Qty</div>
+                                    <div className="w-24 text-xs font-medium text-slate-500 dark:text-slate-400">Discount</div>
+                                    <div className="w-9"></div>
+                                </div>
+                                
+                                {orderItems.map((item, index) => {
+                                    const selectedProduct = products.find(p => p.id === item.productId);
+                                    return (
+                                    <div key={index} className="flex gap-2 items-start">
+                                        <div className="flex-grow">
+                                            <select 
+                                                value={item.productId} 
+                                                onChange={(e) => handleOrderItemChange(index, 'productId', e.target.value)} 
+                                                className="block w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" 
+                                                required
+                                            >
+                                                <option value="" disabled>Select Product</option>
+                                                {products.filter(p => p.quantity > 0).map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name} ({p.quantity} in stock)</option>
+                                                ))}
+                                            </select>
+                                            {selectedProduct && (
+                                                <div className="mt-1 ml-1 text-xs text-slate-500 dark:text-slate-400">
+                                                    Selling Price (MRP): <span className="font-semibold">₹{selectedProduct.sellingPrice}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="w-20">
+                                            <input 
+                                                type="number" 
+                                                min="1" 
+                                                value={item.quantity} 
+                                                onChange={(e) => handleOrderItemChange(index, 'quantity', parseInt(e.target.value))} 
+                                                className="block w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" 
+                                                required 
+                                                placeholder="Qty"
+                                            />
+                                        </div>
+                                        <div className="w-24">
+                                            <input 
+                                                type="number" 
+                                                min="0" 
+                                                value={item.discount || ''} 
+                                                onChange={(e) => handleOrderItemChange(index, 'discount', parseFloat(e.target.value) || 0)} 
+                                                className="block w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" 
+                                                placeholder="Discount"
+                                            />
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleRemoveOrderItem(index)} 
+                                            disabled={orderItems.length === 1}
+                                            className="p-2 text-slate-400 hover:text-red-500 disabled:opacity-30 disabled:hover:text-slate-400"
+                                        >
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                )})}
                             </div>
-                            <div>
-                                <label htmlFor="quantity" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Quantity</label>
-                                <input type="number" name="quantity" id="quantity" min="1" value={newOrderData.quantity} onChange={handleOrderInputChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" required />
+                            
+                            {/* Calculated Totals Display */}
+                            <div className="mt-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+                                <div className="flex justify-end">
+                                    <div className="w-full max-w-xs space-y-2">
+                                        <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
+                                            <span>Subtotal:</span>
+                                            <span>₹{newOrderTotals.subtotal.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
+                                            <span>Tax (18%):</span>
+                                            <span>₹{newOrderTotals.tax.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-lg font-bold text-slate-800 dark:text-slate-200 border-t dark:border-slate-600 pt-2">
+                                            <span>Total Amount:</span>
+                                            <span className="text-brand-secondary">₹{newOrderTotals.total.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
                             <div className="flex justify-end pt-4 gap-2">
                                  <button type="button" onClick={() => setCustomerModalView('details')} className="bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-300 transition-colors dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500">
                                     Cancel
@@ -860,15 +998,15 @@ const Customers: React.FC = () => {
                     )}
                     {customerModalView === 'viewInvoice' && viewingOrder && (
                         <Invoice 
-                            order={viewingOrder}
-                            customer={selectedCustomer}
+                            orders={getOrdersByInvoice(viewingOrder.invoiceNumber)}
+                            customer={context.customers.find(c => c.id === viewingOrder.customerId)!}
                             brandingSettings={brandingSettings}
                         />
                     )}
                     {customerModalView === 'viewReceipt' && viewingOrder && (
                         <Receipt 
-                            order={viewingOrder}
-                            customer={selectedCustomer}
+                            orders={getOrdersByInvoice(viewingOrder.invoiceNumber)}
+                            customer={context.customers.find(c => c.id === viewingOrder.customerId)!}
                             brandingSettings={brandingSettings}
                         />
                     )}

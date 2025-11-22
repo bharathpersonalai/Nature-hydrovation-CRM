@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useMemo } from 'react';
 import { CrmContext } from '../App';
 import { Order, Customer, PaymentMethod } from '../types';
@@ -13,7 +14,7 @@ type BillingTab = 'invoices' | 'receipts';
 const Billing: React.FC = () => {
     const context = useContext(CrmContext);
     if (!context) return null;
-    const { orders, customers, updateOrderStatus, showToast, brandingSettings } = context;
+    const { orders, customers, updateInvoiceStatus, showToast, brandingSettings } = context;
 
     const [activeTab, setActiveTab] = useState<BillingTab>('invoices');
     const [searchQuery, setSearchQuery] = useState('');
@@ -30,37 +31,60 @@ const Billing: React.FC = () => {
         return new Map(customers.map(c => [c.id, c]));
     }, [customers]);
 
+    // Group Orders by Invoice Number to show unique rows
+    const groupedInvoices = useMemo(() => {
+        const grouped: Record<string, { invoiceNumber: string, customerId: string, date: string, status: string, method: string, total: number, representativeOrder: Order, paymentDate?: string }> = {};
+
+        orders.forEach(order => {
+            if (!grouped[order.invoiceNumber]) {
+                grouped[order.invoiceNumber] = {
+                    invoiceNumber: order.invoiceNumber,
+                    customerId: order.customerId,
+                    date: order.orderDate,
+                    status: order.paymentStatus,
+                    method: order.paymentMethod || '-',
+                    total: 0,
+                    representativeOrder: order,
+                    paymentDate: order.paymentDate
+                };
+            }
+            grouped[order.invoiceNumber].total += ((order.salePrice - (order.discount || 0)) * order.quantity);
+        });
+
+        return Object.values(grouped);
+    }, [orders]);
+
     const filteredItems = useMemo(() => {
-        let tempItems: Order[];
+        let tempItems = [...groupedInvoices];
 
         if (activeTab === 'invoices') {
-            tempItems = [...orders].sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+            tempItems = tempItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
              if (statusFilter !== 'all') {
-                tempItems = tempItems.filter(order => order.paymentStatus === statusFilter);
+                tempItems = tempItems.filter(item => item.status === statusFilter);
             }
         } else { // Receipts
-            tempItems = orders
-                .filter(o => o.paymentStatus === 'Paid')
+            tempItems = tempItems
+                .filter(item => item.status === 'Paid')
                 .sort((a, b) => new Date(b.paymentDate!).getTime() - new Date(a.paymentDate!).getTime());
             
             if (paymentMethodFilter !== 'all') {
-                tempItems = tempItems.filter(order => order.paymentMethod === paymentMethodFilter);
+                tempItems = tempItems.filter(item => item.method === paymentMethodFilter);
             }
         }
 
         if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
-            tempItems = tempItems.filter(order => {
-                const customer = customerMap.get(order.customerId);
+            tempItems = tempItems.filter(item => {
+                const customer = customerMap.get(item.customerId);
                 return (
-                    order.invoiceNumber.toLowerCase().includes(lowercasedQuery) ||
+                    item.invoiceNumber.toLowerCase().includes(lowercasedQuery) ||
                     customer?.name.toLowerCase().includes(lowercasedQuery)
                 );
             });
         }
 
         return tempItems;
-    }, [orders, searchQuery, statusFilter, customerMap, activeTab, paymentMethodFilter]);
+    }, [groupedInvoices, searchQuery, statusFilter, customerMap, activeTab, paymentMethodFilter]);
     
     const handleTabChange = (tab: BillingTab) => {
         setActiveTab(tab);
@@ -90,7 +114,7 @@ const Billing: React.FC = () => {
 
     const handleConfirmPayment = () => {
         if (orderToPay) {
-            updateOrderStatus(orderToPay.id, 'Paid', selectedPaymentMethod);
+            updateInvoiceStatus(orderToPay.invoiceNumber, 'Paid', selectedPaymentMethod);
             const updatedOrder = { 
                 ...orderToPay, 
                 paymentStatus: 'Paid' as const, 
@@ -125,6 +149,11 @@ const Billing: React.FC = () => {
             };
             html2pdf().from(element).set(opt).save();
         }
+    };
+    
+    // Helper to get all orders for a given invoice
+    const getOrdersByInvoice = (invoiceNumber: string) => {
+        return orders.filter(o => o.invoiceNumber === invoiceNumber);
     };
 
     return (
@@ -206,21 +235,21 @@ const Billing: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredItems.map(order => {
-                                            const customer = getCustomerForOrder(order);
+                                        {filteredItems.map(item => {
+                                            const customer = customerMap.get(item.customerId);
                                             return (
-                                                <tr key={order.id} className="bg-white border-b hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700">
-                                                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100">{order.invoiceNumber}</td>
+                                                <tr key={item.invoiceNumber} className="bg-white border-b hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700">
+                                                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100">{item.invoiceNumber}</td>
                                                     <td className="px-6 py-4">{customer?.name || 'N/A'}</td>
-                                                    <td className="px-6 py-4">{new Date(order.orderDate).toLocaleDateString()}</td>
-                                                    <td className="px-6 py-4 text-right font-medium">₹{(order.salePrice * order.quantity).toFixed(2)}</td>
+                                                    <td className="px-6 py-4">{new Date(item.date).toLocaleDateString()}</td>
+                                                    <td className="px-6 py-4 text-right font-medium">₹{(item.total * 1.18).toFixed(2)}</td>
                                                     <td className="px-6 py-4 text-center">
-                                                        <span className={`px-2.5 py-1 text-xs rounded-full ${order.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'}`}>
-                                                            {order.paymentStatus}
+                                                        <span className={`px-2.5 py-1 text-xs rounded-full ${item.status === 'Paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'}`}>
+                                                            {item.status}
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <button onClick={() => handleViewInvoice(order)} className="font-medium text-brand-primary hover:underline">
+                                                        <button onClick={() => handleViewInvoice(item.representativeOrder)} className="font-medium text-brand-primary hover:underline">
                                                             View
                                                         </button>
                                                     </td>
@@ -242,17 +271,17 @@ const Billing: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredItems.map(order => {
-                                            const customer = getCustomerForOrder(order);
+                                        {filteredItems.map(item => {
+                                            const customer = customerMap.get(item.customerId);
                                             return (
-                                                <tr key={order.id} className="bg-white border-b hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700">
-                                                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100">{order.invoiceNumber.replace('INV', 'RCPT')}</td>
+                                                <tr key={item.invoiceNumber} className="bg-white border-b hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700">
+                                                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100">{item.invoiceNumber.replace('INV', 'RCPT')}</td>
                                                     <td className="px-6 py-4">{customer?.name || 'N/A'}</td>
-                                                    <td className="px-6 py-4">{new Date(order.paymentDate!).toLocaleDateString()}</td>
-                                                    <td className="px-6 py-4">{order.paymentMethod}</td>
-                                                    <td className="px-6 py-4 text-right font-semibold text-green-600 dark:text-green-400">₹{(order.salePrice * order.quantity * 1.05).toFixed(2)}</td>
+                                                    <td className="px-6 py-4">{new Date(item.paymentDate!).toLocaleDateString()}</td>
+                                                    <td className="px-6 py-4">{item.method}</td>
+                                                    <td className="px-6 py-4 text-right font-semibold text-green-600 dark:text-green-400">₹{(item.total * 1.18).toFixed(2)}</td>
                                                     <td className="px-6 py-4">
-                                                        <button onClick={() => handleViewReceipt(order)} className="font-medium text-brand-primary hover:underline">
+                                                        <button onClick={() => handleViewReceipt(item.representativeOrder)} className="font-medium text-brand-primary hover:underline">
                                                             View Receipt
                                                         </button>
                                                     </td>
@@ -325,13 +354,13 @@ const Billing: React.FC = () => {
                 >
                     {modalContent === 'invoice' ? (
                         <Invoice 
-                            order={viewingOrder}
+                            orders={getOrdersByInvoice(viewingOrder.invoiceNumber)}
                             customer={getCustomerForOrder(viewingOrder)!}
                             brandingSettings={brandingSettings}
                         />
                     ) : (
                          <Receipt
-                            order={viewingOrder}
+                            orders={getOrdersByInvoice(viewingOrder.invoiceNumber)}
                             customer={getCustomerForOrder(viewingOrder)!}
                             brandingSettings={brandingSettings}
                         />

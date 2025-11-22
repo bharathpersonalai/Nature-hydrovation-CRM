@@ -61,7 +61,6 @@ const Dashboard = () => {
 
     const totalRevenue = orders.reduce((sum, order) => sum + order.salePrice * order.quantity, 0);
     const lowStockItems = products.filter(p => p.quantity <= p.lowStockThreshold).length;
-    const totalProducts = products.length;
 
     const salesData = orders.reduce((acc, order) => {
         const date = new Date(order.orderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -100,15 +99,15 @@ const Dashboard = () => {
                 />
                 <StatCard 
                     title="Total Products" 
-                    value={totalProducts} 
-                    description="Unique product SKUs" 
+                    value={products.length} 
+                    description="Unique products in inventory" 
                     icon={<PackageIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />}
                     color="blue"
                 />
                 <StatCard 
                     title="Low Stock Alerts" 
                     value={lowStockItems} 
-                    description="Products needing restock" 
+                    description="Items needing restock" 
                     icon={<AlertCircleIcon className="w-6 h-6 text-red-600 dark:text-red-400" />}
                     color="red"
                 />

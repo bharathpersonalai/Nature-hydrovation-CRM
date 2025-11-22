@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useMemo, useEffect } from 'react';
 import { CrmContext } from '../App';
 import { Lead, LeadStatus } from '../types';
@@ -383,7 +384,7 @@ const Leads = () => {
                                                     onChange={(e) => updateLead({ ...lead, status: e.target.value as LeadStatus })}
                                                     onClick={(e) => e.stopPropagation()}
                                                     disabled={lead.status === LeadStatus.Converted}
-                                                    className={`w-full max-w-[120px] mx-auto text-center appearance-none cursor-pointer px-2.5 py-1 text-xs font-semibold border-0 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-brand-primary ${getStatusColorClasses(lead.status).bg} ${getStatusColorClasses(lead.status).text} disabled:cursor-not-allowed disabled:opacity-75`}
+                                                    className={`w-full max-w-[130px] mx-auto cursor-pointer px-2 py-1 text-xs font-semibold border-0 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-brand-primary ${getStatusColorClasses(lead.status).bg} ${getStatusColorClasses(lead.status).text} disabled:cursor-not-allowed disabled:opacity-75`}
                                                 >
                                                     {lead.status === LeadStatus.Converted ? (
                                                         <option value={LeadStatus.Converted} className="text-black dark:text-white bg-white dark:bg-slate-800">{LeadStatus.Converted}</option>

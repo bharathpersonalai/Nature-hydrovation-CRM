@@ -1,21 +1,23 @@
-export enum DistributorSupplier {
-  Globexi = "Globexi",
-  Riveraro = "Riveraro",
-  Benchmark = "Benchmark",
+
+// FIX: Removed self-import of DistributorSupplier to resolve declaration conflict.
+
+export interface ProductCategory {
+  name: string;
+  supplier: string;
 }
 
 export interface Product {
   id: string;
   name: string;
-  supplier: DistributorSupplier;
   sku: string;
+  dealer: string; // Changed from Enum to string for dynamic suppliers
+  category: string; // Added category field
   costPrice: number;
   sellingPrice: number;
   quantity: number;
   lowStockThreshold: number;
   imageUrl?: string;
 }
-
 
 export enum LeadStatus {
   New = "New",
@@ -52,6 +54,7 @@ export interface Order {
   productName: string;
   quantity: number;
   salePrice: number;
+  discount?: number;
   orderDate: string;
   invoiceNumber: string;
   paymentStatus: 'Paid' | 'Unpaid';
@@ -75,7 +78,6 @@ export interface Customer {
 export interface StockHistoryEntry {
   id: string;
   productId: string;
-  productName: string;
   date: string;
   change: number; // Positive for additions, negative for deductions
   reason: string;
@@ -93,7 +95,7 @@ export interface Referral {
 }
 
 
-export type View = 'dashboard' | 'inventory' | 'leads' | 'customers' | 'billing' | 'reports' | 'referrals';
+export type View = 'dashboard' | 'inventory' | 'stock-registry' | 'leads' | 'customers' | 'billing' | 'reports' | 'referrals';
 
 export interface BrandingSettings {
   companyName: string;

@@ -1,7 +1,7 @@
 import React, { createContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Product, Lead, Customer, Order, StockHistoryEntry, View, DistributorSupplier, LeadStatus, PaymentMethod, BrandingSettings, Referral } from './types';
+import { Product, Lead, Customer, Order, StockHistoryEntry, View, LeadStatus, PaymentMethod, BrandingSettings, Referral, ProductCategory } from './types';
 import {
-  DashboardIcon, InventoryIcon, LeadsIcon, CustomersIcon, ReportsIcon, SunIcon, MoonIcon, WaterDropIcon, BillingIcon, GiftIcon, BellIcon, AlertTriangleIcon
+  DashboardIcon, InventoryIcon, LeadsIcon, CustomersIcon, ReportsIcon, SunIcon, MoonIcon, HistoryIcon, BillingIcon, GiftIcon, BellIcon, AlertTriangleIcon
 } from './components/Icons';
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
@@ -20,6 +20,7 @@ import { updateDocument } from "./firebase/firestore";
 import { deleteDocument } from "./firebase/firestore";
 import { addStockHistoryEntry } from "./firebase/firestore";
 import { getDocumentById } from "./firebase/firestore";
+import StockRegistry from './components/StockRegistry'; 
 
 export interface CrmContextType {
   products: Product[];
@@ -28,9 +29,25 @@ export interface CrmContextType {
   orders: Order[];
   referrals: Referral[];
   stockHistory: StockHistoryEntry[];
-  addProduct: (product: Omit<Product, 'id'>) => void;
-  updateProduct: (product: Product, reason?: string) => void;
-  deleteProduct: (productId: string) => void;
+
+  // Dynamic Lists
+  suppliers: string[];
+  categories: ProductCategory[]; // { name, supplier }
+
+  addSupplier: (name: string) => void;
+  updateSupplier: (oldName: string, newName: string) => void;
+  removeSupplier: (name: string) => void;
+
+  addCategory: (name: string, supplier: string) => void;
+  updateCategory: (oldName: string, supplier: string, newName: string) => void;
+  removeCategory: (name: string, supplier: string) => void;
+
+  // Product functions
+  addProduct: (product: Omit<Product, 'id'>) => void | Promise<void>;
+  updateProduct: (product: Product, reason?: string) => void | Promise<void>;
+  deleteProduct: (productId: string) => void | Promise<void>;
+
+  // Lead / Customer / Order
   addLead: (leadData: Omit<Lead, 'id' | 'createdAt'>, referralCode?: string) => void;
   updateLead: (lead: Lead) => void;
   deleteLead: (leadId: string) => void;
@@ -41,6 +58,8 @@ export interface CrmContextType {
   addOrder: (newOrder: { customerId: string, productId: string, quantity: number }) => { success: boolean, message: string, order?: Order, newReferralCode?: string };
   updateOrderStatus: (orderId: string, status: 'Paid' | 'Unpaid', paymentMethod: PaymentMethod) => void;
   markRewardAsPaid: (referralId: string) => void;
+
+  // UI / misc
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   toast: { message: string, type: 'success' | 'error' | 'warning', id: number } | null;
@@ -50,6 +69,7 @@ export interface CrmContextType {
   setViewingItem: (item: { type: string; id: string } | null) => void;
   clearViewingItem: () => void;
 }
+
 
 export const CrmContext = createContext<CrmContextType | null>(null);
 
@@ -177,13 +197,61 @@ function SignIn() {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
     const [referrals, setReferrals] = useState<Referral[]>([]);
-    const [stockHistory, setStockHistory] = useState<StockHistoryEntry[]>([]);
+    const [suppliers, setSuppliers] = useState<string[]>([]);
+    const [categories, setCategories] = useState<{ name: string; supplier: string }[]>([]);
+    const [stockHistory, setStockHistory] = useState<StockHistoryEntry[]>([]);   
     const [currentView, setCurrentView] = useState<View>('dashboard');
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'warning', id: number } | null>(null);
     const [viewingItem, setViewingItem] = useState<{ type: string; id: string } | null>(null);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const notificationsRef = useRef<HTMLDivElement>(null);
+   
+
+    
+
+// Supplier helpers
+const addSupplier = useCallback((name: string) => {
+  if (!name) return;
+  setSuppliers(prev => prev.includes(name) ? prev : [...prev, name]);
+  // optional: also add default category placeholder if you want
+  // showToast? If you want user feedback call showToast('Supplier added')
+}, []);
+
+const updateSupplier = useCallback((oldName: string, newName: string) => {
+  if (!oldName || !newName || oldName === newName) return;
+  setSuppliers(prev => prev.map(s => s === oldName ? newName : s));
+  // update categories that referenced the old supplier
+  setCategories(prev => prev.map(c => c.supplier === oldName ? { ...c, supplier: newName } : c));
+}, []);
+
+const removeSupplier = useCallback((name: string) => {
+  if (!name) return;
+  setSuppliers(prev => prev.filter(s => s !== name));
+  // remove categories that belonged to this supplier
+  setCategories(prev => prev.filter(c => c.supplier !== name));
+}, []);
+
+// Category helpers
+const addCategory = useCallback((name: string, supplier: string) => {
+  if (!name || !supplier) return;
+  // prevent duplicates for same supplier
+  if (categories.some(c => c.name === name && c.supplier === supplier)) return;
+  setCategories(prev => [...prev, { name, supplier }]);
+}, [categories]);
+
+const updateCategory = useCallback((oldName: string, supplier: string, newName: string) => {
+  if (!oldName || !newName) return;
+  setCategories(prev => prev.map(c => (c.name === oldName && c.supplier === supplier) ? { ...c, name: newName } : c));
+}, []);
+
+const removeCategory = useCallback((name: string, supplier: string) => {
+  if (!name || !supplier) return;
+  setCategories(prev => prev.filter(c => !(c.name === name && c.supplier === supplier)));
+}, []);
+// --- end suppliers/categories helpers ---
+
+
 // Firestore: real-time products listener
 useEffect(() => {
   const unsubscribe = subscribeToCollection("products", (items) => {
@@ -479,18 +547,27 @@ useEffect(() => {
     const clearViewingItem = () => setViewingItem(null);
 
     const contextValue: CrmContextType = {
-        products, leads, customers, orders, stockHistory, referrals,
-        addProduct, updateProduct, deleteProduct,
+        products, leads, customers, orders, stockHistory, referrals, suppliers,
+       categories,
+  addSupplier,
+  updateSupplier,
+  removeSupplier,
+  addCategory,
+  updateCategory,
+  removeCategory,
+
+        addProduct, updateProduct, deleteProduct, 
         addLead, updateLead, deleteLead, deleteMultipleLeads, convertLeadToCustomer,
         addCustomer, updateCustomer, addOrder, updateOrderStatus, markRewardAsPaid,
         theme, toggleTheme, toast, showToast, brandingSettings,
-        viewingItem, setViewingItem, clearViewingItem
+        viewingItem, setViewingItem, clearViewingItem 
     };
 
     const renderView = () => {
         switch (currentView) {
             case 'dashboard': return <Dashboard />;
             case 'inventory': return <Inventory />;
+            case 'stock-registry': return <StockRegistry />; 
             case 'leads': return <Leads />;
             case 'customers': return <Customers />;
             case 'billing': return <Billing />;
@@ -512,7 +589,7 @@ useEffect(() => {
             <div className={`flex h-screen bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans`}>
                 <aside className="w-64 bg-white dark:bg-slate-800 flex flex-col flex-shrink-0 shadow-md">
                     <div className="h-16 flex items-center px-6 border-b border-slate-200 dark:border-slate-700">
-                        <WaterDropIcon className="w-7 h-7 text-brand-primary" />
+                        
                         <h1 className="text-xl font-bold ml-2 text-slate-800 dark:text-slate-200">NatureHydrovation</h1>
                     </div>
                     <nav className="flex-1 p-4 space-y-2">
@@ -609,6 +686,7 @@ useEffect(() => {
 const VIEWS: Record<View, { label: string; icon: React.ReactElement<{ className?: string }>; color: string; activeColor: string; }> = {
     dashboard: { label: 'Dashboard', icon: <DashboardIcon />, color: 'text-sky-500', activeColor: 'bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-300' },
     inventory: { label: 'Inventory', icon: <InventoryIcon />, color: 'text-emerald-500', activeColor: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300' },
+    'stock-registry': { label: 'Stock Registry', icon: <HistoryIcon />, color: 'text-violet-500', activeColor: 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300' },
     leads: { label: 'Leads', icon: <LeadsIcon />, color: 'text-amber-500', activeColor: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-300' },
     customers: { label: 'Customers', icon: <CustomersIcon />, color: 'text-blue-500', activeColor: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300' },
     referrals: { label: 'Referrals', icon: <GiftIcon />, color: 'text-pink-500', activeColor: 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-300' },

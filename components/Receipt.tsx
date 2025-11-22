@@ -1,19 +1,22 @@
+
 import React from 'react';
 import { Order, Customer, BrandingSettings } from '../types';
-import { WaterDropIcon } from './Icons';
 
 interface ReceiptProps {
-  order: Order;
+  orders: Order[];
   customer: Customer;
   brandingSettings: BrandingSettings;
 }
 
-const Receipt: React.FC<ReceiptProps> = ({ order, customer, brandingSettings }) => {
-  const subtotal = order.salePrice * order.quantity;
-  const tax = subtotal * 0.05;
+const Receipt: React.FC<ReceiptProps> = ({ orders, customer, brandingSettings }) => {
+  const subtotal = orders.reduce((sum, order) => sum + ((order.salePrice - (order.discount || 0)) * order.quantity), 0);
+  const tax = subtotal * 0.18;
   const total = subtotal + tax;
   const brandColor = brandingSettings.brandColor || '#059669'; // Using secondary for receipts
   const referralCode = customer.referralCode;
+  
+  // Assume all orders in the array have the same invoice number and date
+  const representativeOrder = orders[0];
 
   return (
     <>
@@ -41,10 +44,8 @@ const Receipt: React.FC<ReceiptProps> = ({ order, customer, brandingSettings }) 
       <div id="receipt-section-content" className="text-slate-800 dark:text-slate-200">
         <header className="flex justify-between items-start pb-6 border-b-2" style={{ borderColor: `${brandColor}40`}}>
           <div className="flex items-center gap-3">
-             {brandingSettings.companyLogo ? (
+             {brandingSettings.companyLogo && (
                 <img src={brandingSettings.companyLogo} alt="Company Logo" className="w-12 h-12 object-contain"/>
-            ) : (
-                <WaterDropIcon className="w-10 h-10" style={{ color: brandingSettings.brandColor }} />
             )}
             <div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{brandingSettings.companyName}</h1>
@@ -54,8 +55,8 @@ const Receipt: React.FC<ReceiptProps> = ({ order, customer, brandingSettings }) 
           </div>
           <div className="text-right">
             <h2 className="text-3xl font-bold uppercase tracking-widest" style={{ color: brandColor }}>Receipt</h2>
-            <p className="font-medium text-slate-700 dark:text-slate-300"># {order.invoiceNumber.replace('INV', 'RCPT')}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">For Invoice # {order.invoiceNumber}</p>
+            <p className="font-medium text-slate-700 dark:text-slate-300"># {representativeOrder.invoiceNumber.replace('INV', 'RCPT')}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">For Invoice # {representativeOrder.invoiceNumber}</p>
           </div>
         </header>
 
@@ -69,11 +70,11 @@ const Receipt: React.FC<ReceiptProps> = ({ order, customer, brandingSettings }) 
           <div className="text-right">
             <div className="mb-2">
               <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Payment Date:</p>
-              <p className="font-medium text-slate-700 dark:text-slate-300">{order.paymentDate ? new Date(order.paymentDate).toLocaleString() : 'N/A'}</p>
+              <p className="font-medium text-slate-700 dark:text-slate-300">{representativeOrder.paymentDate ? new Date(representativeOrder.paymentDate).toLocaleString() : 'N/A'}</p>
             </div>
              <div className="mb-2">
               <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Paid Via:</p>
-              <p className="font-medium text-slate-700 dark:text-slate-300">{order.paymentMethod || 'N/A'}</p>
+              <p className="font-medium text-slate-700 dark:text-slate-300">{representativeOrder.paymentMethod || 'N/A'}</p>
             </div>
             <div>
               <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Payment Status:</p>
@@ -89,19 +90,25 @@ const Receipt: React.FC<ReceiptProps> = ({ order, customer, brandingSettings }) 
             <table className="w-full text-left">
               <thead className="text-white text-sm uppercase" style={{ backgroundColor: brandColor }}>
                 <tr>
-                  <th className="p-3 font-semibold tracking-wider">Item</th>
-                  <th className="p-3 font-semibold tracking-wider text-center">Qty</th>
-                  <th className="p-3 font-semibold tracking-wider text-right">Unit Price</th>
-                  <th className="p-3 font-semibold tracking-wider text-right">Total</th>
+                  <th className="p-3 font-semibold tracking-wider text-left">Item</th>
+                  <th className="p-3 font-semibold tracking-wider text-center w-20">Qty</th>
+                  <th className="p-3 font-semibold tracking-wider text-right w-28">MRP</th>
+                  <th className="p-3 font-semibold tracking-wider text-right w-28">Discount</th>
+                  <th className="p-3 font-semibold tracking-wider text-right w-28">Net</th>
+                  <th className="p-3 font-semibold tracking-wider text-right w-32">Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                <tr className="dark:bg-slate-800">
-                  <td className="p-3 font-medium text-slate-900 dark:text-slate-100">{order.productName}</td>
-                  <td className="p-3 text-center text-slate-600 dark:text-slate-300">{order.quantity}</td>
-                  <td className="p-3 text-right text-slate-600 dark:text-slate-300">₹{order.salePrice.toFixed(2)}</td>
-                  <td className="p-3 text-right font-semibold text-slate-800 dark:text-slate-200">₹{subtotal.toFixed(2)}</td>
-                </tr>
+                {orders.map((item) => (
+                    <tr key={item.id} className="dark:bg-slate-800">
+                    <td className="p-3 font-medium text-slate-900 dark:text-slate-100">{item.productName}</td>
+                    <td className="p-3 text-center text-slate-600 dark:text-slate-300">{item.quantity}</td>
+                    <td className="p-3 text-right text-slate-600 dark:text-slate-300">₹{item.salePrice.toFixed(2)}</td>
+                    <td className="p-3 text-right text-slate-600 dark:text-slate-300">{item.discount ? `₹${item.discount.toFixed(2)}` : '-'}</td>
+                    <td className="p-3 text-right text-slate-600 dark:text-slate-300">₹{(item.salePrice - (item.discount || 0)).toFixed(2)}</td>
+                    <td className="p-3 text-right font-semibold text-slate-800 dark:text-slate-200">₹{((item.salePrice - (item.discount || 0)) * item.quantity).toFixed(2)}</td>
+                    </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -115,7 +122,7 @@ const Receipt: React.FC<ReceiptProps> = ({ order, customer, brandingSettings }) 
                 <span className="font-medium text-slate-700 dark:text-slate-300">₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500 dark:text-slate-400">Taxes (5%):</span>
+                <span className="text-slate-500 dark:text-slate-400">Taxes (18%):</span>
                 <span className="font-medium text-slate-700 dark:text-slate-300">₹{tax.toFixed(2)}</span>
               </div>
             </div>

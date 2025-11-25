@@ -21,6 +21,8 @@ import { deleteDocument } from "./firebase/firestore";
 import { addStockHistoryEntry } from "./firebase/firestore";
 import { getDocumentById } from "./firebase/firestore";
 import StockRegistry from './components/StockRegistry'; 
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+
 
 export interface CrmContextType {
   products: Product[];
@@ -243,7 +245,7 @@ function SignIn() {
     const [viewingItem, setViewingItem] = useState<{ type: string; id: string } | null>(null);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const notificationsRef = useRef<HTMLDivElement>(null);
-   
+    const [userRole, setUserRole] = useState("user");
 
     
 
@@ -319,6 +321,20 @@ const removeCategory = useCallback(async (name: string, supplier: string) => {
 }, [categories]);
 // --- end suppliers/categories helpers ---
 
+
+useEffect(() => {
+  async function fetchRoleFromFirestore() {
+    if (firebaseUser) {
+      const db = getFirestore();
+      const ref = doc(db, "admins", firebaseUser.uid);
+      const snap = await getDoc(ref);
+      setUserRole(snap.exists() ? snap.data().role : "user");
+    } else {
+      setUserRole("user");
+    }
+  }
+  fetchRoleFromFirestore();
+}, [firebaseUser]); 
 
 // Firestore: real-time suppliers listener
 
@@ -1052,10 +1068,11 @@ const updateOrderStatus = useCallback(
                               { /* firebaseUser is passed into App; show email if present */ }
                               {firebaseUser?.email ?? "User"}
                             </div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                              {/* optional role label */}
-                              Admin
-                            </div>
+                           <div className="text-xs text-slate-500 dark:text-slate-400">
+  {/* Show user's actual role */}
+  {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+</div>
+
                           </div>
 
                           <button

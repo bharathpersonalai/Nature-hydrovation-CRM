@@ -59,13 +59,22 @@ export function subscribeToCollection(
   const colRef = collection(db, collectionName);
 
   return onSnapshot(colRef, (snapshot) => {
-    const items = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const items = snapshot.docs.map((docSnap) => {
+      const raw = docSnap.data();
+
+      // Remove "id" from document data so it cannot override Firestore's doc.id
+      const { id: _ignoreInternalId, ...rest } = raw as any;
+
+      return {
+        id: docSnap.id,   // <-- REAL Firestore document ID
+        ...rest,
+      };
+    });
+
     callback(items);
   });
 }
+
 
 /**
  * Add a stock history entry for a product

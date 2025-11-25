@@ -8,7 +8,7 @@ import { PlusCircleIcon, DownloadIcon, CheckCircleIcon, AlertTriangleIcon, XCirc
 const emptyProduct = {
     name: '',
     sku: '',
-    dealer: '',
+    supplier: '',
     category: '',
     costPrice: 0,
     sellingPrice: 0,
@@ -381,7 +381,7 @@ const Inventory = () => {
                     }}
                     className="block w-full md:w-auto px-4 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
                 >
-                    <option value="all">All Dealers</option>
+                    <option value="all">All Suppliers</option>
                     {suppliers.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
                  <select
@@ -413,7 +413,7 @@ const Inventory = () => {
                                     <tr>
                                         <th scope="col" className="px-6 py-3">Product</th>
                                         <th scope="col" className="px-6 py-3">Category</th>
-                                        <th scope="col" className="px-6 py-3">Dealer</th>
+                                        <th scope="col" className="px-6 py-3">Supplier</th>
                                         <th scope="col" className="px-6 py-3">Purchase Price</th>
                                         <th scope="col" className="px-6 py-3">Selling Price</th>
                                         <th scope="col" className="px-6 py-3">Stock</th>
@@ -803,7 +803,7 @@ const Inventory = () => {
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4 dark:border-slate-700">
-                            <p><span className="font-semibold text-slate-500 dark:text-slate-400">Dealer:</span> {viewingProduct.dealer}</p>
+                            <p><span className="font-semibold text-slate-500 dark:text-slate-400">Supplier:</span> {viewingProduct.dealer}</p>
                             <p><span className="font-semibold text-slate-500 dark:text-slate-400">Purchase Price:</span> ₹{viewingProduct.costPrice.toFixed(2)}</p>
                             <p><span className="font-semibold text-slate-500 dark:text-slate-400">Selling Price:</span> ₹{viewingProduct.sellingPrice.toFixed(2)}</p>
                             <p><span className="font-semibold text-slate-500 dark:text-slate-400">In Stock:</span> {viewingProduct.quantity}</p>

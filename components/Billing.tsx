@@ -10,6 +10,7 @@ import {
   PdfIcon,
   FileTextIcon,
   ReceiptIcon,
+  DownloadIcon,
 } from "./Icons";
 
 declare var html2pdf: any;
@@ -26,6 +27,118 @@ const Billing: React.FC = () => {
     showToast,
     brandingSettings,
   } = context;
+
+  const handleExportAllBilling = () => {
+    // Filter orders based on active tab
+    const filteredOrders =
+      activeTab === "receipts"
+        ? orders.filter((order) => order.paymentStatus === "Paid")
+        : orders; // For invoices, show all orders
+
+    if (filteredOrders.length === 0) {
+      showToast(`No ${activeTab} data to export.`, "error");
+      return;
+    }
+
+    // CSV Headers (update based on tab)
+    const headers =
+      activeTab === "receipts"
+        ? [
+            "Receipt Number",
+            "Customer Name",
+            "Payment Date",
+            "Total Amount",
+            "Tax (18%)",
+            "Grand Total",
+            "Payment Method",
+          ]
+        : [
+            "Invoice Number",
+            "Customer Name",
+            "Order Date",
+            "Total Amount",
+            "Tax (18%)",
+            "Grand Total",
+            "Payment Status",
+            "Payment Method",
+            "Payment Date",
+          ];
+
+    // Helper to escape CSV fields
+    const escapeCsvField = (field: any) => {
+      const str = String(field || "");
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // Build rows based on tab
+    const rows = filteredOrders.map((order) => {
+      const customer = customers.find((c) => c.id === order.customerId);
+      const subtotal = order.totalAmount || 0;
+      const tax = subtotal * 0.18;
+      const grandTotal = subtotal + tax;
+
+      if (activeTab === "receipts") {
+        // Receipt format
+        return [
+          order.invoiceNumber.replace("INV", "RCPT"),
+          customer?.name || "N/A",
+          order.paymentDate
+            ? new Date(order.paymentDate).toLocaleDateString()
+            : "-",
+          subtotal.toFixed(2),
+          tax.toFixed(2),
+          grandTotal.toFixed(2),
+          order.paymentMethod || "-",
+        ]
+          .map(escapeCsvField)
+          .join(",");
+      } else {
+        // Invoice format
+        return [
+          order.invoiceNumber,
+          customer?.name || "N/A",
+          new Date(order.orderDate).toLocaleDateString(),
+          subtotal.toFixed(2),
+          tax.toFixed(2),
+          grandTotal.toFixed(2),
+          order.paymentStatus,
+          order.paymentMethod || "-",
+          order.paymentDate
+            ? new Date(order.paymentDate).toLocaleDateString()
+            : "-",
+        ]
+          .map(escapeCsvField)
+          .join(",");
+      }
+    });
+
+    // Create CSV content
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+
+    // Dynamic filename based on tab
+    const filename = `${activeTab}-export-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast(
+      `${
+        activeTab.charAt(0).toUpperCase() + activeTab.slice(1)
+      } data exported successfully!`,
+      "success"
+    );
+  };
 
   const [activeTab, setActiveTab] = useState<BillingTab>("invoices");
   const [searchQuery, setSearchQuery] = useState("");
@@ -281,31 +394,46 @@ const Billing: React.FC = () => {
 
   return (
     <div className="p-6 md:p-8">
-      <h1 className="text-3xl font-bold text-slate-800 mb-4 dark:text-slate-200">
-        Billing
-      </h1>
+      {/* Header with Export Button */}
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+          Billing
+        </h1>
 
+        {/* Export All Billing Button - Dynamic Text */}
+        <button
+          onClick={handleExportAllBilling}
+          className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+        >
+          <DownloadIcon className="w-5 h-5" />
+          {activeTab === "receipts"
+            ? "Export All Receipts"
+            : "Export All Invoices"}
+        </button>
+      </div>
+
+      {/* Tabs Navigation */}
       <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
         <nav className="-mb-px flex space-x-6" aria-label="Tabs">
           <button
             onClick={() => handleTabChange("invoices")}
             className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
-                            ${
-                              activeTab === "invoices"
-                                ? "border-brand-primary text-brand-primary"
-                                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
-                            }`}
+            ${
+              activeTab === "invoices"
+                ? "border-brand-primary text-brand-primary"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
+            }`}
           >
             Invoices
           </button>
           <button
             onClick={() => handleTabChange("receipts")}
             className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
-                            ${
-                              activeTab === "receipts"
-                                ? "border-brand-primary text-brand-primary"
-                                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
-                            }`}
+            ${
+              activeTab === "receipts"
+                ? "border-brand-primary text-brand-primary"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
+            }`}
           >
             Receipts
           </button>

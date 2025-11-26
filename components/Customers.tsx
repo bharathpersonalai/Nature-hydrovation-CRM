@@ -107,7 +107,7 @@ const Customers: React.FC = () => {
     useState<Referral | null>(null);
   const [referralSlipBackground, setReferralSlipBackground] = useState<
     string | null
-  >(null);
+  >("/slip.jpg");
   const slipContainerRef = useRef<HTMLDivElement>(null);
   const backgroundUploadRef = useRef<HTMLInputElement>(null);
 
@@ -1347,35 +1347,57 @@ const Customers: React.FC = () => {
                           CUSTOMIZE REFERRAL SLIP
                         </h4>
                         <div className="mt-2 flex items-center gap-4">
-                          <div className="w-24 h-14 bg-slate-200 dark:bg-slate-700 rounded-md flex items-center justify-center">
-                            {referralSlipBackground ? (
-                              <img
-                                src={referralSlipBackground}
-                                alt="Referral slip background"
-                                className="w-full h-full object-cover rounded-md"
-                              />
-                            ) : (
-                              <ImageIcon className="w-6 h-6 text-slate-400" />
-                            )}
-                          </div>
-                          <div>
-                            <input
-                              type="file"
-                              ref={backgroundUploadRef}
-                              onChange={handleBackgroundUpload}
-                              accept="image/*"
-                              className="hidden"
+                          <div className="w-24 h-14 bg-slate-200 dark:bg-slate-700 rounded-md flex items-center justify-center overflow-hidden">
+                            <img
+                              src={referralSlipBackground || "/slip.jpg"}
+                              alt="Referral slip background"
+                              className="w-full h-full object-cover rounded-md"
                             />
-                            <button
-                              onClick={() =>
-                                backgroundUploadRef.current?.click()
-                              }
-                              className="flex items-center gap-2 text-sm font-medium bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 px-3 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600"
-                            >
-                              <UploadCloudIcon className="w-4 h-4" />
-                              Upload Background
-                            </button>
-                            <p className="text-xs text-slate-400 mt-1">
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="file"
+                                ref={backgroundUploadRef}
+                                onChange={handleBackgroundUpload}
+                                accept="image/*"
+                                className="hidden"
+                              />
+                              <button
+                                onClick={() =>
+                                  backgroundUploadRef.current?.click()
+                                }
+                                className="flex items-center gap-2 text-sm font-medium bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 px-3 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600"
+                              >
+                                <UploadCloudIcon className="w-4 h-4" />
+                                Upload Background
+                              </button>
+
+                              {/* NEW: View Customer Slip Button */}
+                              {selectedCustomer?.referralCode && (
+                                <button
+                                  onClick={() => {
+                                    // Create a dummy referral object to view the slip
+                                    const dummyReferral: Referral = {
+                                      id: "preview",
+                                      referrerId: selectedCustomer.id,
+                                      refereeId: "",
+                                      orderId: "",
+                                      date: new Date().toISOString(),
+                                      status: "Completed",
+                                      rewardAmount: 500,
+                                    };
+                                    setViewingReferralSlip(dummyReferral);
+                                    setCustomerModalView("viewReferralSlip");
+                                  }}
+                                  className="flex items-center gap-2 text-sm font-medium bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700"
+                                >
+                                  <TicketIcon className="w-4 h-4" />
+                                  View Customer Slip
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400">
                               Recommended size: 1280x720px.
                             </p>
                           </div>
@@ -1646,7 +1668,9 @@ const Customers: React.FC = () => {
                 referrerName={selectedCustomer.name}
                 date={viewingReferralSlip.date}
                 rewardAmount={viewingReferralSlip.rewardAmount}
-                backgroundUrl={referralSlipBackground}
+                backgroundUrl={
+                  referralSlipBackground || "/slip.jpg"
+                } /* Always use default if null */
                 referralCode={selectedCustomer.referralCode}
               />
             </div>

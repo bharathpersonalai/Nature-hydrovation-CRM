@@ -195,23 +195,6 @@ function SignIn() {
             >
               {loading ? "Authenticating..." : "Sign In to Dashboard"}
             </button>
-            
-            <div className="relative flex py-2 items-center">
-                <div className="flex-grow border-t border-white/10"></div>
-                <span className="flex-shrink-0 mx-4 text-slate-400 text-xs">Or continue with</span>
-                <div className="flex-grow border-t border-white/10"></div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              className="w-full py-2.5 border border-white/20 rounded-xl hover:bg-white/10 transition-colors font-medium text-white text-sm flex items-center justify-center gap-2"
-              disabled={loading}
-            >
-              {/* Google G Icon */}
-              <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="currentColor" d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.536-6.033-5.696  c0-3.159,2.701-5.696,6.033-5.696c1.482,0,2.846,0.48,3.928,1.264l2.927-2.917c-1.931-1.662-4.532-2.663-7.519-2.663  C6.551,2.398,1.751,6.864,1.751,12.378c0,5.513,4.8,9.979,10.795,9.979c6.218,0,10.129-4.382,10.129-9.889  c0-0.638-0.081-1.252-0.208-1.849h-9.921H12.545z"/></svg>
-              Google
-            </button>
           </form>
         </div>
       </div>
@@ -1068,11 +1051,10 @@ const updateOrderStatus = useCallback(
                               { /* firebaseUser is passed into App; show email if present */ }
                               {firebaseUser?.email ?? "User"}
                             </div>
-                           <div className="text-xs text-slate-500 dark:text-slate-400">
-  {/* Show user's actual role */}
-  {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
-</div>
-
+                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                                 {/* Show user's actual role */}
+                                  {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+                          </div>
                           </div>
 
                           <button

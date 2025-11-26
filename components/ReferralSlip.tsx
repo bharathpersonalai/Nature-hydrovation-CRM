@@ -36,8 +36,11 @@ const ReferralSlip: React.FC<ReferralSlipProps> = ({ referrerName, backgroundUrl
 
                 <div className="mt-4">
                     <p className="text-sm text-slate-300 italic">
-                        “Share this code with friends & families and earn ₹500 for every water purifier they buy using your code. Unlimited referrals!, No Time Limit - Share it on all your social media accounts and start earning today”
-                    </p>
+Share your referral code with friends and family!
+When they purchase a water purifier or any product worth ₹10,000 or more using your code, they will get an instant ₹500 discount on their billing.
+And once their purchase is completed, YOU also earn ₹500 as a referral reward.
+
+Unlimited referrals! No time limit! Share everywhere and start earning!</p>
                     <hr className="border-t-2 border-dashed border-sky-500/30 my-3" />
                 </div>
                 {referralCode && (

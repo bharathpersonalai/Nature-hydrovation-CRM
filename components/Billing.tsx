@@ -12,7 +12,6 @@ import {
   ReceiptIcon,
   DownloadIcon,
 } from "./Icons";
-import { safeNumber, getTotalWithTax } from '../utils/calculationUtils';
 
 declare var html2pdf: any;
 
@@ -28,8 +27,8 @@ const Billing: React.FC = () => {
     showToast,
     brandingSettings,
   } = context;
-   const taxRate = context?.brandingSettings.taxRate ?? 18; 
-   const handleExportAllBilling = () => {
+
+  const handleExportAllBilling = () => {
     // Filter orders based on active tab
     const filteredOrders =
       activeTab === "receipts"
@@ -513,11 +512,13 @@ const Billing: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                   
-{filteredItems.map((item) => {
-  const customer = customerMap.get(item.customerId);
-  const displayTotal = safeNumber(item.total, 0);
-  const totalWithTax = getTotalWithTax(displayTotal, taxRate); 
+                    {filteredItems.map((item) => {
+                      const customer = customerMap.get(item.customerId);
+                      const displayTotal =
+                        isNaN(item.total) || !isFinite(item.total)
+                          ? 0
+                          : Number(item.total);
+                      const totalWithTax = (displayTotal * 1.18).toFixed(2);
 
                       return (
                         <tr

@@ -13,7 +13,6 @@ import {
 } from "recharts";
 import { Product, Lead, Order } from "../types";
 import { RupeeIcon, UsersIcon, PackageIcon, AlertCircleIcon } from "./Icons";
-import { getOrderAmount } from '../utils/calculationUtils';      
 
 interface StatCardProps {
   title: string;

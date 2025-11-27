@@ -104,4 +104,5 @@ export interface BrandingSettings {
   brandColor: string;
   customField: string;
   footerNotes: string;
+  taxRate: number; // ← ADD THIS LINE 
 }

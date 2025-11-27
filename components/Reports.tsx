@@ -3,6 +3,7 @@ import { CrmContext } from '../App';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { LeadStatus } from '../types';
 
+
 const Reports = () => {
     const context = useContext(CrmContext);
     if (!context) return null;

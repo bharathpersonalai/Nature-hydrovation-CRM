@@ -39,8 +39,7 @@ const ReferralSlip: React.FC<ReferralSlipProps> = ({ referrerName, backgroundUrl
 Share your referral code with friends and family!
 When they purchase a water purifier or any product worth ₹10,000 or more using your code, they will get an instant ₹500 discount on their billing.
 And once their purchase is completed, YOU also earn ₹500 as a referral reward.
-
-Unlimited referrals! No time limit! Share everywhere and start earning!</p>
+Unlimited referrer! Unlimited Earnings! No time limit! Share everywhere on your Social Media!</p>  
                     <hr className="border-t-2 border-dashed border-sky-500/30 my-3" />
                 </div>
                 {referralCode && (

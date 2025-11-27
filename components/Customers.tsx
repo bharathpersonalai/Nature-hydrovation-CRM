@@ -682,24 +682,43 @@ const Customers: React.FC = () => {
   };
 
   // --- ADD THIS HELPER ---
-  const getInvoiceLinesFor = (invoiceNumber: string) => {
+   const getInvoiceLinesFor = (invoiceNumber: string) => {
     const oList = getOrdersByInvoice(invoiceNumber);
+    
+    // Validate oList exists and has items
     if (!oList || oList.length === 0) return [];
 
     // Case A: Firestore stores single order doc with items[]
     if (oList.length === 1 && Array.isArray((oList[0] as any).items)) {
       const doc = oList[0] as any;
-      return doc.items.map((it: any, idx: number) => ({
-        id: `${doc.id}_itm_${idx}`,
-        productName: it.productName ?? it.name ?? "Item",
-        quantity: it.quantity ?? it.qty ?? 0,
-        salePrice: it.salePrice ?? it.price ?? 0,
-        discount: it.discount ?? 0,
-        invoiceNumber: doc.invoiceNumber,
-        orderDate: doc.orderDate,
-        paymentStatus: doc.paymentStatus,
-        customerId: doc.customerId,
-      })) as any[];
+      
+      // Validate doc.items exists and is not empty
+      if (!doc.items || !Array.isArray(doc.items) || doc.items.length === 0) {
+        console.warn('[getInvoiceLinesFor] Doc items array is invalid:', doc);
+        return [];
+      }
+
+      try {
+        return doc.items.map((it: any, idx: number) => {
+          // Validate each item has required fields
+          if (!it) return null;
+          
+          return {
+            id: `${doc.id}_itm_${idx}`,
+            productName: it.productName ?? it.name ?? "Item",
+            quantity: Math.max(0, it.quantity ?? it.qty ?? 0),
+            salePrice: Math.max(0, it.salePrice ?? it.price ?? 0),
+            discount: Math.max(0, it.discount ?? 0),
+            invoiceNumber: doc.invoiceNumber ?? invoiceNumber,
+            orderDate: doc.orderDate ?? new Date().toISOString(),
+            paymentStatus: doc.paymentStatus ?? "Unpaid",
+            customerId: doc.customerId ?? "",
+          };
+        }).filter((item): item is any => item !== null);
+      } catch (error) {
+        console.error('[getInvoiceLinesFor] Error mapping items:', error);
+        return [];
+      }
     }
 
     // Case B: already line items — return as is

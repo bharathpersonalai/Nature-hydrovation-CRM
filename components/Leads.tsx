@@ -1,6 +1,7 @@
 
-import React, { useState, useContext, useMemo, useEffect } from 'react';
-import { CrmContext } from '../App';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useData } from '../contexts/DataContext';
+import { useUI } from '../contexts/UIContext';
 import { Lead, LeadStatus } from '../types';
 import Modal from './Modal';
 import { PlusCircleIcon, PencilIcon, TrashIcon, XIcon, CalendarIcon, AlertTriangleIcon, ChevronRightIcon } from './Icons';
@@ -117,9 +118,17 @@ const LeadPipeline: React.FC<LeadPipelineProps> = ({ counts, total, activeFilter
 
 
 const Leads = () => {
-    const context = useContext(CrmContext);
-    if (!context) return null;
-    const { leads, addLead, updateLead, convertLeadToCustomer, deleteLead, deleteMultipleLeads, viewingItem, clearViewingItem } = context;
+    const { 
+    leads, 
+    viewingItem, 
+    clearViewingItem,
+    addLead, 
+    updateLead, 
+    convertLeadToCustomer, 
+    deleteLead, 
+    deleteMultipleLeads 
+} = useData();
+const { showToast } = useUI(); 
 
     const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
     const [editingLead, setEditingLead] = useState<Lead | null>(null);

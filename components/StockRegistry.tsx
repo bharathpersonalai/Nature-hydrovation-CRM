@@ -1,13 +1,19 @@
-import React, { useContext, useState, useMemo } from 'react';
-import { CrmContext } from '../App';
+import React, { useState, useMemo } from 'react';
+import { useData } from '../contexts/DataContext';
+import { useUI } from '../contexts/UIContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { DownloadIcon, PlusCircleIcon, FileTextIcon, PackageIcon } from './Icons';
 import Modal from './Modal';
+import { Product, StockHistoryEntry } from '../types'; // Ensure types are imported 
 
 const StockRegistry = () => {
-    const context = useContext(CrmContext);
-    if (!context) return null;
-    const { stockHistory, products, theme, updateProduct, showToast, suppliers } = context;
+    const { 
+    stockHistory, 
+    products, 
+    suppliers,
+    updateProduct // Business logic for stock adjustment is needed here
+} = useData();
+const { theme, showToast } = useUI(); // UI theme and notifications 
 
     // Optimize product lookup
     const productMap = useMemo(() => {

@@ -55,8 +55,10 @@ export interface Order {
   quantity: number;
   salePrice: number;
   discount?: number;
-  orderDate: string;
+  serviceFee?: number;  // ✅ ADD THIS
+  orderDate: string;  
   invoiceNumber: string;
+  totalAmount: number; 
   paymentStatus: 'Paid' | 'Unpaid';
   paymentDate?: string;
   paymentMethod?: PaymentMethod;
@@ -104,5 +106,13 @@ export interface BrandingSettings {
   brandColor: string;
   customField: string;
   footerNotes: string;
+}
+
+export interface OrderResult {
+    success: boolean;
+    message: string;
+    order?: Order;
+    newReferralCode?: string;
+    error?: any;
 }
  

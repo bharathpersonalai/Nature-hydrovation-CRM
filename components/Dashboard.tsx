@@ -1,6 +1,7 @@
 // /mnt/data/Dashboard.tsx
-import React, { useContext, useMemo } from "react";
-import { CrmContext } from "../App";
+import React, { useMemo } from "react";
+import { useData } from "../contexts/DataContext";
+import { useUI } from "../contexts/UIContext";
 import {
   LineChart,
   Line,
@@ -85,20 +86,8 @@ const StatCard: React.FC<StatCardProps> = ({
 const currency = (n: number) => `₹${n.toFixed(2)}`;
 
 const Dashboard: React.FC = () => {
-  const context = useContext(CrmContext);
-  if (!context) return null;
-
-  const {
-    products = [],
-    leads = [],
-    orders = [],
-    theme,
-  } = context as any as {
-    products: Product[];
-    leads: Lead[];
-    orders: Order[];
-    theme: "light" | "dark";
-  };
+  const { products, leads, orders } = useData();
+  const { theme } = useUI();
 
   // --- SAFETY: compute numeric amount for an order (handles both single-order fields and items[] arrays)
   const getOrderAmount = (order: Order): number => {
@@ -121,12 +110,11 @@ const Dashboard: React.FC = () => {
     return (unit - discount) * qty;
   };
 
-  // --- Totals (memoized)
+  // ✅ FIXED: Filter only PAID orders for revenue calculation
   const totalRevenue = useMemo(() => {
-    return (orders || []).reduce(
-      (s: number, o: Order) => s + getOrderAmount(o),
-      0
-    );
+    return (orders || [])
+      .filter((o: Order) => o.paymentStatus === 'Paid')  // ✅ ONLY PAID ORDERS
+      .reduce((s: number, o: Order) => s + getOrderAmount(o), 0);
   }, [orders]);
 
   const ordersCount = orders.length ?? 0;
@@ -140,24 +128,27 @@ const Dashboard: React.FC = () => {
     }).length;
   }, [products]);
 
-  // Prepare sales-by-day (safe)
+  // ✅ FIXED: Prepare sales-by-day (only PAID orders)
   const salesData = useMemo(() => {
     const map: Record<string, number> = {};
-    (orders || []).forEach((o) => {
-      const dateKey = o?.orderDate
-        ? new Date(o.orderDate).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          })
-        : "Unknown";
-      map[dateKey] = (map[dateKey] || 0) + getOrderAmount(o);
-    });
+    (orders || [])
+      .filter((o: Order) => o.paymentStatus === 'Paid')  // ✅ ONLY PAID ORDERS
+      .forEach((o) => {
+        const dateKey = o?.orderDate
+          ? new Date(o.orderDate).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })
+          : "Unknown";
+        map[dateKey] = (map[dateKey] || 0) + getOrderAmount(o);
+      });
     return map;
   }, [orders]);
 
   const chartData = Object.entries(salesData)
     .map(([name, sales]) => ({ name, sales }))
     .slice(-7);
+
   const tooltipStyle = {
     backgroundColor: theme === "light" ? "#fff" : "#0f1724",
     border: `1px solid ${theme === "light" ? "#e2e8f0" : "#334155"}`,
@@ -174,7 +165,7 @@ const Dashboard: React.FC = () => {
         <StatCard
           title="Total Revenue"
           value={currency(totalRevenue)}
-          description="All-time sales"
+          description="Paid sales only"  /* ✅ UPDATED description */ 
           icon={
             <RupeeIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
           }
@@ -213,7 +204,7 @@ const Dashboard: React.FC = () => {
         <h2 className="text-xl font-semibold text-slate-800 mb-4 dark:text-slate-200">
           Recent Sales Performance
         </h2>
-        {(orders || []).length > 0 ? (
+        {(orders || []).filter(o => o.paymentStatus === 'Paid').length > 0 ? (  /* ✅ CHECK PAID ORDERS */
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={chartData}>
               <CartesianGrid
@@ -238,7 +229,7 @@ const Dashboard: React.FC = () => {
         ) : (
           <div className="text-center py-16">
             <p className="text-slate-500 dark:text-slate-400">
-              No sales data yet. Record a sale to see performance charts.
+              No paid sales yet. Mark invoices as paid to see performance charts.  {/* ✅ UPDATED message */}
             </p>
           </div>
         )}

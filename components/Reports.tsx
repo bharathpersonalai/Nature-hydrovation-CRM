@@ -1,18 +1,28 @@
-import React, { useContext, useMemo } from 'react';
-import { CrmContext } from '../App';
+import React, { useState, useMemo } from 'react';
+import { useData } from '../contexts/DataContext';
+import { useUI } from '../contexts/UIContext';
+import { Order, Customer, Product, Lead } from '../types';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { LeadStatus } from '../types';
 
 const Reports = () => {
-    const context = useContext(CrmContext);
-    if (!context) return null;
-    const { products, leads, orders, theme, suppliers } = context;
-
+    const { 
+        orders, 
+        customers,  
+        products, 
+        leads,
+        suppliers 
+    } = useData();
+    const { theme } = useUI();
+    
+    // ✅ FILTER: Only use PAID orders for all calculations
+    const paidOrders = useMemo(() => {
+        return (orders || []).filter(o => o.paymentStatus === 'Paid');
+    }, [orders]);
+    
     // ----- Helper functions that handle both single-item and multi-item orders -----
-    // Extract items[] normalized from an order: each item has { productId, quantity, salePrice, discount? }
     const getOrderItems = (order: any) => {
         if (Array.isArray(order.items) && order.items.length > 0) {
-            // Ensure normalized numeric values
             return order.items.map((it: any) => ({
                 productId: it.productId,
                 quantity: Number(it.quantity ?? it.qty ?? 0) || 0,
@@ -20,7 +30,6 @@ const Reports = () => {
                 discount: Number(it.discount ?? 0) || 0
             }));
         }
-        // fallback single-line order shape
         return [{
             productId: order.productId,
             quantity: Number(order.quantity ?? order.qty ?? 0) || 0,
@@ -29,34 +38,30 @@ const Reports = () => {
         }];
     };
 
-    // Compute total amount for an order (sum of (salePrice - discount) * qty)
     const getOrderAmount = (order: any) => {
         const items = getOrderItems(order);
         return items.reduce((s: number, it: any) => s + ((it.salePrice - (it.discount || 0)) * it.quantity), 0);
     };
 
-    // Compute total qty for an order (sum of item quantities)
     const getOrderQuantity = (order: any) => {
         const items = getOrderItems(order);
         return items.reduce((s: number, it: any) => s + (it.quantity || 0), 0);
     };
 
-    // --- Data Calculations ---
+    // --- Data Calculations (Using PAID orders only) ---
 
-    // 1. Sales by Product (top products)
+    // 1. Sales by Product (top products) - ✅ USES paidOrders
     const salesByProduct = useMemo(() => {
-        // Map productId -> totals
         const map: Record<string, { name: string, sales: number }> = {};
         products.forEach(product => {
-            map[product.id] = { name: product.name || product.title || 'Unknown', sales: 0 };
+            map[product.id] = { name: product.name || 'Unknown', sales: 0 }; 
         });
 
-        orders.forEach(order => {
+        paidOrders.forEach(order => {  // ✅ CHANGED: orders → paidOrders
             const items = getOrderItems(order);
             items.forEach((it: any) => {
                 if (!it.productId) return;
                 if (!map[it.productId]) {
-                    // product might not exist locally (safety)
                     map[it.productId] = { name: 'Unknown Product', sales: 0 };
                 }
                 map[it.productId].sales += (Number(it.salePrice || 0) - Number(it.discount || 0)) * Number(it.quantity || 0);
@@ -67,9 +72,9 @@ const Reports = () => {
             .filter(p => p.sales > 0)
             .sort((a, b) => b.sales - a.sales)
             .slice(0, 10);
-    }, [products, orders]);
+    }, [products, paidOrders]);  // ✅ CHANGED: orders → paidOrders
 
-    // 2. Leads by Status
+    // 2. Leads by Status (unchanged - not related to orders)
     const leadsByStatus = useMemo(() => {
         return Object.values(LeadStatus).map(status => ({
             name: status,
@@ -77,33 +82,31 @@ const Reports = () => {
         }));
     }, [leads]);
 
-    // 3. Supplier Analytics (Consolidated Logic)
+    // 3. Supplier Analytics - ✅ USES paidOrders
     const supplierStats = useMemo(() => {
-        // Build set of supplier names from suppliers array + product.dealer / product.supplier fields
         const activeSuppliers = new Set<string>([
             ...(Array.isArray(suppliers) ? suppliers : []),
-            ...products.map(p => (p.dealer || p.supplier || '').toString()).filter(Boolean)
+            ...products.map(p => (p.dealer || '').toString()).filter(Boolean)
         ]);
 
         const stats = Array.from(activeSuppliers).map(supplier => {
-            const supplierProducts = products.filter(p => (p.dealer || p.supplier) === supplier);
+            const supplierProducts = products.filter(p => p.dealer === supplier);
 
             // Stock Metrics
             const productCount = supplierProducts.length;
             const stockQuantity = supplierProducts.reduce((sum, p) => sum + (Number(p.quantity ?? 0) || 0), 0);
             const stockValue = supplierProducts.reduce((sum, p) => sum + ((Number(p.costPrice ?? 0) || 0) * (Number(p.quantity ?? 0) || 0)), 0);
 
-            // Sales Metrics: need to inspect orders' items and attribute to supplier via product mapping
+            // Sales Metrics - ✅ USES paidOrders
             let salesQuantity = 0;
             let salesValue = 0;
 
-            orders.forEach(order => {
+            paidOrders.forEach(order => {  // ✅ CHANGED: orders → paidOrders
                 const items = getOrderItems(order);
                 items.forEach((it: any) => {
                     if (!it.productId) return;
                     const product = products.find(p => p.id === it.productId);
-                    // only count if the product's dealer/supplier matches
-                    const prodSupplier = (product?.dealer || product?.supplier || '');
+                    const prodSupplier = (product?.dealer || '');
                     if (prodSupplier === supplier) {
                         const qty = Number(it.quantity || 0) || 0;
                         const unit = Number(it.salePrice || 0) || 0;
@@ -124,10 +127,9 @@ const Reports = () => {
             };
         });
 
-        // Filter out suppliers with absolutely no activity to avoid empty rows
         return stats.filter(s => s.productCount > 0 || s.salesValue > 0 || s.stockQuantity > 0)
                     .sort((a, b) => b.salesValue - a.salesValue);
-    }, [products, orders, suppliers]);
+    }, [products, paidOrders, suppliers]);  // ✅ CHANGED: orders → paidOrders
 
     // Chart data
     const salesBySupplierChartData = supplierStats.filter(s => s.salesValue > 0).map(s => ({ name: s.name, value: s.salesValue }));
@@ -140,9 +142,8 @@ const Reports = () => {
         border: `1px solid ${theme === 'light' ? '#e2e8f0' : '#334155'}`,
         borderRadius: '0.5rem',
         color: theme === 'light' ? '#0f172a' : '#f8fafc'
-    };
+    }; 
 
-    // Helper to render chart container with min sizes so Recharts ResponsiveContainer has dimensions
     const renderChartContainer = (title: string, data: any[], children: React.ReactNode) => (
         <div className="bg-white p-6 rounded-lg shadow-sm dark:bg-slate-800 flex flex-col">
             <h2 className="text-lg font-semibold text-slate-800 mb-6 dark:text-slate-200">{title}</h2>
@@ -154,7 +155,7 @@ const Reports = () => {
                 </div>
             ) : (
                 <div className="flex items-center justify-center h-[300px] bg-slate-50 dark:bg-slate-900/50 rounded-lg">
-                    <p className="text-slate-500 dark:text-slate-400">No data available</p>
+                    <p className="text-slate-500 dark:text-slate-400">No paid sales data available</p>  {/* ✅ UPDATED message */}
                 </div>
             )}
         </div>
@@ -178,7 +179,7 @@ const Reports = () => {
                 ))}
 
                 {renderChartContainer("Sales Distribution by Supplier", salesBySupplierChartData, (
-                     <PieChart>
+                    <PieChart>
                         <Pie
                             data={salesBySupplierChartData}
                             dataKey="value"

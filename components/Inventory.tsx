@@ -1,6 +1,6 @@
-
-import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
-import { CrmContext } from '../App';
+import React, { useState, useMemo, useRef, useEffect } from "react"; 
+import { useData } from "../contexts/DataContext"; // New Data Access
+import { useUI } from "../contexts/UIContext"; // UI Access (showToast)
 import { Product, StockHistoryEntry } from '../types';
 import Modal from './Modal';
 import { PlusCircleIcon, DownloadIcon, CheckCircleIcon, AlertTriangleIcon, XCircleIcon, ImageIcon, TrashIcon, PencilIcon } from './Icons';
@@ -18,12 +18,15 @@ const emptyProduct = {
 };
 
 const Inventory = () => {
-    const context = useContext(CrmContext);
-    if (!context) return null;
+    // 1. Retrieve all data states AND business functions from the DataContext
     const { 
-        products, addProduct, updateProduct, viewingItem, clearViewingItem, showToast,
-        suppliers, categories, addSupplier, updateSupplier, removeSupplier, addCategory, updateCategory, removeCategory
-    } = context;
+        products, suppliers, categories, viewingItem, clearViewingItem,
+        addProduct, updateProduct, deleteProduct, // Product Service functions
+        addSupplier, updateSupplier, removeSupplier, addCategory, updateCategory, removeCategory // List Service functions
+    } = useData();
+    
+    // 2. Retrieve UI functions
+    const { showToast } = useUI();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isListManagerOpen, setIsListManagerOpen] = useState(false);
@@ -355,7 +358,7 @@ const Inventory = () => {
                         <DownloadIcon className="w-5 h-5" />
                         Export
                     </button>
-                     <button onClick={() => setIsListManagerOpen(true)} className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors">
+                    <button onClick={() => setIsListManagerOpen(true)} className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors">
                         Manage Products
                     </button>
                     <button onClick={openAddModal} className="flex items-center gap-2 bg-brand-secondary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:opacity-90 transition-colors">
@@ -384,7 +387,7 @@ const Inventory = () => {
                     <option value="all">All Suppliers</option>
                     {suppliers.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
-                 <select
+                <select
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
                     className="block w-full md:w-auto px-4 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
@@ -481,7 +484,7 @@ const Inventory = () => {
                     {/* Suppliers Section */}
                     <div className="space-y-4">
                         <h3 className="font-semibold text-slate-800 dark:text-slate-200">Suppliers / Dealers</h3>
-                         <form onSubmit={handleAddSupplier} className="flex gap-2 items-stretch">
+                        <form onSubmit={handleAddSupplier} className="flex gap-2 items-stretch">
                             <input 
                                 type="text" 
                                 placeholder="New Supplier Name" 
@@ -494,7 +497,7 @@ const Inventory = () => {
                             </button>
                         </form>
                         <div className="border rounded-md dark:border-slate-700 max-h-64 overflow-y-auto bg-slate-50 dark:bg-slate-900/30">
-                             <ul className="divide-y dark:divide-slate-700">
+                            <ul className="divide-y dark:divide-slate-700">
                                 {suppliers.map(supplier => (
                                     <li key={supplier} className="flex justify-between items-center px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
                                         {editingSupplier?.original === supplier ? (
@@ -510,7 +513,7 @@ const Inventory = () => {
                                                     <CheckCircleIcon className="w-4 h-4 text-green-500" />
                                                 </button>
                                                 <button onClick={() => setEditingSupplier(null)}>
-                                                     <XCircleIcon className="w-4 h-4 text-red-500" />
+                                                    <XCircleIcon className="w-4 h-4 text-red-500" />
                                                 </button>
                                             </div>
                                         ) : (
@@ -559,10 +562,10 @@ const Inventory = () => {
                             </div>
                         </form>
                         <div className="border rounded-md dark:border-slate-700 max-h-64 overflow-y-auto bg-slate-50 dark:bg-slate-900/30">
-                             <ul className="divide-y dark:divide-slate-700">
+                            <ul className="divide-y dark:divide-slate-700">
                                 {categories.map((cat, index) => (
                                     <li key={`${cat.supplier}-${cat.name}-${index}`} className="flex justify-between items-center px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
-                                         {editingCategory?.originalName === cat.name && editingCategory.supplier === cat.supplier ? (
+                                        {editingCategory?.originalName === cat.name && editingCategory.supplier === cat.supplier ? (
                                             <div className="flex items-center gap-2 flex-grow">
                                                 <input 
                                                     type="text" 
@@ -575,10 +578,10 @@ const Inventory = () => {
                                                     <CheckCircleIcon className="w-4 h-4 text-green-500" />
                                                 </button>
                                                 <button onClick={() => setEditingCategory(null)}>
-                                                     <XCircleIcon className="w-4 h-4 text-red-500" />
+                                                    <XCircleIcon className="w-4 h-4 text-red-500" />
                                                 </button>
                                             </div>
-                                         ) : (
+                                        ) : (
                                             <>
                                                 <div className="flex flex-col">
                                                     <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{cat.name}</span>
@@ -593,7 +596,7 @@ const Inventory = () => {
                                                     </button>
                                                 </div>
                                             </>
-                                         )}
+                                        )}
                                     </li>
                                 ))}
                                 {categories.length === 0 && <li className="px-3 py-4 text-sm text-slate-500 italic text-center">No categories added yet.</li>}
@@ -692,7 +695,7 @@ const Inventory = () => {
                             </select>
                         </div>
                         <div>
-                             <label htmlFor="category" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                            <label htmlFor="category" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
                             <select name="category" id="category" value={formData.category} onChange={handleInputChange} disabled={!formData.dealer || availableFormCategories.length === 0} className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed">
                                 <option value="" disabled>Select Category</option>
                                 {availableFormCategories.map((c, idx) => <option key={`${c.name}-${idx}`} value={c.name}>{c.name}</option>)}
@@ -707,13 +710,13 @@ const Inventory = () => {
                             <input type="number" id="costPrice" name="costPrice" step="0.01" value={formData.costPrice || ''} onChange={handleInputChange} className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" required />
                         </div>
                         <div>
-                           <label htmlFor="sellingPrice" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Selling Price</label>
-                           <input type="number" id="sellingPrice" name="sellingPrice" step="0.01" value={formData.sellingPrice || ''} onChange={handleInputChange} className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" required />
+                            <label htmlFor="sellingPrice" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Selling Price</label>
+                            <input type="number" id="sellingPrice" name="sellingPrice" step="0.01" value={formData.sellingPrice || ''} onChange={handleInputChange} className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" required />
                         </div>
                     </div>
                     {!editingProduct && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <div>
+                            <div>
                                 <label htmlFor="quantity" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Initial Quantity</label>
                                 <input id="quantity" type="number" name="quantity" value={formData.quantity || ''} onChange={handleInputChange} className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" required />
                             </div>
@@ -725,12 +728,12 @@ const Inventory = () => {
                     )}
                     {editingProduct && (
                         <div className="border-t pt-4 space-y-4 dark:border-slate-700">
-                             <div>
+                            <div>
                                 <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">Update Stock</h4>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">Current stock: {editingProduct.quantity}. Enter a positive number to add stock, a negative number to remove.</p>
-                             </div>
-                             
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                                 <div className="col-span-1">
                                     <label htmlFor="stockChange" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Change Amount</label>
                                     <input type="number" id="stockChange" placeholder="e.g., -5 or 10" value={stockChange} onChange={(e) => {
@@ -775,7 +778,7 @@ const Inventory = () => {
                             </div>
                         </div>
                     )}
-                     {formError && (
+                    {formError && (
                         <div className="flex items-center gap-2 p-3 text-sm text-red-800 bg-red-100 rounded-lg dark:bg-red-900/50 dark:text-red-300">
                             <AlertTriangleIcon className="w-5 h-5" />
                             <span>{formError}</span>
@@ -816,4 +819,3 @@ const Inventory = () => {
 };
 
 export default Inventory;
-    

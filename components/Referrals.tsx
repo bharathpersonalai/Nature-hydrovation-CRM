@@ -1,7 +1,8 @@
-import React, { useContext, useMemo } from 'react';
-import { CrmContext } from '../App';
-import { Customer, Referral } from '../types';
-import { CheckCircleIcon, GiftIcon } from './Icons';
+import React, { useState, useMemo } from 'react';
+import { useData } from '../contexts/DataContext';
+import { useUI } from '../contexts/UIContext'; 
+import { Referral, Customer } from '../types'; // Ensure types are imported
+import { CheckCircleIcon, GiftIcon } from './Icons'; // Assuming necessary icons are imported
 
 const StatCard: React.FC<{ title: string; value: string | number; description: string }> = ({ title, value, description }) => (
   <div className="bg-white p-6 rounded-lg shadow-sm dark:bg-slate-800">
@@ -13,10 +14,12 @@ const StatCard: React.FC<{ title: string; value: string | number; description: s
 
 
 const Referrals = () => {
-    const context = useContext(CrmContext);
-    if (!context) return null;
-
-    const { referrals, customers, markRewardAsPaid } = context;
+   const { 
+    referrals, 
+    customers, 
+    markRewardAsPaid // Business logic for updating reward status
+} = useData();
+const { showToast } = useUI(); // UI notifications 
 
     const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
 

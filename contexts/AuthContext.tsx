@@ -11,8 +11,7 @@ import {
   signOut,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  sendPasswordResetEmail, // ✅ ADD THIS
-  fetchSignInMethodsForEmail,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth } from "../firebase/firebaseConfig";
 
@@ -77,8 +76,9 @@ export const SignIn: React.FC = () => {
   const [passwordError, setPasswordError] = useState("");
   const [generalError, setGeneralError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // ✅ NEW
 
-  // ✅ NEW: Forgot Password States
+  // Forgot Password States
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetMessage, setResetMessage] = useState("");
@@ -112,27 +112,31 @@ export const SignIn: React.FC = () => {
     }
   };
 
-  // ✅ FIXED: Handle Password Reset with Email Validation
+  // ✅ IMPROVED: Validate against known admin emails
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetError("");
     setResetMessage("");
     setResetLoading(true);
 
+    // ✅ Client-side validation for known admin emails
+    const ADMIN_EMAILS = [
+      "bharathpersonalai@gmail.com",
+      "naturehydrovation@gmail.com",
+    ];
+
+    const normalizedEmail = resetEmail.trim().toLowerCase();
+    
+    if (!ADMIN_EMAILS.includes(normalizedEmail)) {
+      setResetError(
+        "This email is not registered as an admin. Please contact your administrator."
+      );
+      setResetLoading(false);
+      return;
+    }
+
     try {
-      // ✅ STEP 1: Check if email exists in Firebase Auth
-      const signInMethods = await fetchSignInMethodsForEmail(auth, resetEmail);
-
-      if (signInMethods.length === 0) {
-        // Email doesn't exist in Firebase
-        setResetError(
-          "This email is not registered. Please contact your administrator."
-        );
-        setResetLoading(false);
-        return;
-      }
-
-      // ✅ STEP 2: Email exists, now send reset link
+      // Send reset email to validated admin
       await sendPasswordResetEmail(auth, resetEmail);
       setResetMessage("Password reset email sent! Check your inbox.");
       setResetEmail("");
@@ -143,6 +147,8 @@ export const SignIn: React.FC = () => {
         setResetMessage("");
       }, 3000);
     } catch (err: any) {
+      console.error("Password reset error:", err);
+      
       if (err.code === "auth/invalid-email") {
         setResetError("Invalid email format");
       } else if (err.code === "auth/too-many-requests") {
@@ -203,14 +209,35 @@ export const SignIn: React.FC = () => {
               <label className="block text-xs uppercase tracking-wider text-slate-300 font-semibold mb-1 ml-1">
                 Password
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-white/10 rounded-xl bg-black/20 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none transition-all backdrop-blur-sm"
-                placeholder="••••••••"
-                disabled={loading}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 pr-12 border border-white/10 rounded-xl bg-black/20 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none transition-all backdrop-blur-sm"
+                  placeholder="••••••••"
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors p-1"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    // Eye Slash Icon (Hide)
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    // Eye Icon (Show)
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {passwordError && (
                 <div className="text-xs text-red-400 mt-1 ml-1 font-medium">
                   {passwordError}
@@ -218,7 +245,7 @@ export const SignIn: React.FC = () => {
               )}
             </div>
 
-            {/* ✅ NEW: Forgot Password Link */}
+            {/* Forgot Password Link */}
             <div className="text-right">
               <button
                 type="button"
@@ -246,7 +273,7 @@ export const SignIn: React.FC = () => {
         </div>
       </div>
 
-      {/* ✅ NEW: Forgot Password Modal */}
+      {/* Forgot Password Modal */}
       {showForgotPassword && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white/10 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl p-8 shadow-2xl border border-white/20 max-w-md w-full">
@@ -326,4 +353,4 @@ export const SignIn: React.FC = () => {
             `}</style>
     </div>
   );
-};
+};  

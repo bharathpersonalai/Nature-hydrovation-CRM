@@ -26,8 +26,21 @@ import { useAuth, SignIn } from "../contexts/AuthContext";
 import { useUI } from "../contexts/UIContext";
 import { Lead } from "../types";
 
+// ✅ NEW: Hamburger Menu Icon Component
+const MenuIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+
+// ✅ NEW: Close Icon Component
+const CloseIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
 // --- 1. ACCESS RESTRICTED COMPONENT ---
-// Simple component to show when a non-admin tries to access a protected page
 const AccessRestricted = () => (
   <div className="flex flex-col items-center justify-center h-full text-center p-8 bg-slate-50 dark:bg-slate-900/50">
     <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full mb-4">
@@ -119,39 +132,32 @@ const VIEWS: Record<
 };
 
 const MainLayout: React.FC = () => {
-  // Get Authentication State
   const { user, logout } = useAuth();
-  
-  // Get UI State
   const { theme, toggleTheme } = useUI();
 
-  // Safely get DataContext
   const dataContext = useContext(DataContext);
   const leads = dataContext?.leads || [];
 
   const [currentView, setCurrentView] = useState<View>("dashboard");
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
-
-  // --- 2. ADMIN CONFIGURATION ---
-  // TODO: Add your email here to give yourself access!
-  const ADMIN_EMAILS = [
-      "bharathpersonalai@gmail.com", 
-      "naturehydrovation@gmail.com"  
-  ]; 
   
-  // Check if current user is an admin
-  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
+  // ✅ NEW: Sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
 
-  // Define which tabs are restricted
+  const ADMIN_EMAILS = [
+    "bharathpersonalai@gmail.com",
+    "naturehydrovation@gmail.com",
+  ];
+
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
   const RESTRICTED_TABS: View[] = ["dashboard", "inventory", "stock-registry", "reports"];
 
-  // Authentication Guard - Show SignIn if not logged in
   if (!user) {
     return <SignIn />;
   }
 
-  // Notification Logic
   const overdueFollowUps = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -159,6 +165,22 @@ const MainLayout: React.FC = () => {
       (lead: Lead) => lead.followUpDate && new Date(lead.followUpDate) < today
     );
   }, [leads]);
+
+  // ✅ NEW: Close sidebar on outside click (mobile)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target as Node) &&
+        isSidebarOpen &&
+        window.innerWidth < 768
+      ) {
+        setIsSidebarOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isSidebarOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -173,13 +195,10 @@ const MainLayout: React.FC = () => {
   }, []);
 
   const renderView = () => {
-    // --- 3. SECURITY CHECK ---
-    // If the view is restricted AND the user is NOT an admin, block access
     if (RESTRICTED_TABS.includes(currentView) && !isAdmin) {
-        return <AccessRestricted />;
+      return <AccessRestricted />;
     }
 
-    // Normal Rendering Logic
     switch (currentView) {
       case "dashboard":
         return <Dashboard />;
@@ -203,26 +222,48 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div
-      className={`flex h-screen bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans`}
-    >
-      {/* SIDEBAR */}
-      <aside className="w-64 bg-white dark:bg-slate-800 flex flex-col flex-shrink-0 shadow-md">
-        <div className="h-16 flex items-center px-6 border-b border-slate-200 dark:border-slate-700">
+    <div className="flex h-screen bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans">
+      
+      {/* ✅ NEW: Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* ✅ UPDATED: SIDEBAR with responsive behavior */}
+      <aside
+        ref={sidebarRef}
+        className={`
+          fixed md:relative z-40
+          w-64 bg-white dark:bg-slate-800 
+          flex flex-col flex-shrink-0 shadow-md
+          h-screen
+          transition-transform duration-300 ease-in-out
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}
+      >
+        {/* ✅ NEW: Close button (mobile only) */}
+        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-700">
           <img
             src="/logo.png"
             alt="Nature Hydrovation"
             className="h-10 w-auto object-contain"
           />
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          >
+            <CloseIcon className="w-6 h-6" />
+          </button>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
+
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {(Object.keys(VIEWS) as View[]).map((view) => {
             const viewConfig = VIEWS[view];
             const isActive = currentView === view;
-            
-            // Optional: Visually indicate restricted items with a lock icon or dimming?
-            // For now, we keep them standard but they will show the Restricted screen when clicked.
-            
+
             const icon = React.cloneElement(viewConfig.icon, {
               className: `w-5 h-5 ${
                 isActive
@@ -230,10 +271,17 @@ const MainLayout: React.FC = () => {
                   : "text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200"
               }`,
             });
+
             return (
               <button
                 key={view}
-                onClick={() => setCurrentView(view)}
+                onClick={() => {
+                  setCurrentView(view);
+                  // ✅ Close sidebar on mobile after clicking
+                  if (window.innerWidth < 768) {
+                    setIsSidebarOpen(false);
+                  }
+                }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors group ${
                   isActive
                     ? `${viewConfig.activeColor}`
@@ -246,6 +294,7 @@ const MainLayout: React.FC = () => {
             );
           })}
         </nav>
+
         <div className="p-4 border-t border-slate-200 dark:border-slate-700">
           <button
             onClick={toggleTheme}
@@ -263,79 +312,92 @@ const MainLayout: React.FC = () => {
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* HEADER */}
-        <header className="h-16 bg-white dark:bg-slate-800 flex-shrink-0 flex items-center justify-end px-6 border-b border-slate-200 dark:border-slate-700">
-          {/* Notification Dropdown */}
-          <div ref={notificationsRef} className="relative">
-            <button
-              onClick={() => setIsNotificationsOpen((prev) => !prev)}
-              className="relative text-slate-500 hover:text-brand-primary dark:text-slate-400 dark:hover:text-brand-primary transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
-              aria-label="Notifications"
-            >
-              <BellIcon className="w-6 h-6" />
-              {overdueFollowUps.length > 0 && (
-                <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" />
+        {/* ✅ UPDATED: HEADER with hamburger button */}
+        <header className="h-16 bg-white dark:bg-slate-800 flex-shrink-0 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-700">
+          
+          {/* ✅ NEW: Hamburger Menu Button */}
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="md:hidden text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            aria-label="Open menu"
+          >
+            <MenuIcon className="w-6 h-6" />
+          </button>
+
+          {/* ✅ UPDATED: Right side items */}
+          <div className="flex items-center gap-4 ml-auto">
+            {/* Notification Dropdown */}
+            <div ref={notificationsRef} className="relative">
+              <button
+                onClick={() => setIsNotificationsOpen((prev) => !prev)}
+                className="relative text-slate-500 hover:text-brand-primary dark:text-slate-400 dark:hover:text-brand-primary transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+                aria-label="Notifications"
+              >
+                <BellIcon className="w-6 h-6" />
+                {overdueFollowUps.length > 0 && (
+                  <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" />
+                )}
+              </button>
+              {isNotificationsOpen && (
+                <div className="absolute z-20 mt-2 w-72 origin-top-right right-0 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-800 dark:ring-slate-700">
+                  <div className="p-2">
+                    <h3 className="px-2 py-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      Overdue Follow-ups ({overdueFollowUps.length})
+                    </h3>
+                  </div>
+                  <div className="py-1 max-h-80 overflow-y-auto">
+                    {overdueFollowUps.length > 0 ? (
+                      overdueFollowUps.map((lead) => (
+                        <button
+                          key={lead.id}
+                          onClick={() => {
+                            setCurrentView("leads");
+                            setIsNotificationsOpen(false);
+                          }}
+                          className="w-full text-left flex items-start gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                        >
+                          <AlertTriangleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-semibold">{lead.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Due on{" "}
+                              {new Date(lead.followUpDate!).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-3 py-4 text-sm text-center text-slate-500 dark:text-slate-400">
+                        No overdue follow-ups. Great job!
+                      </p>
+                    )}
+                  </div>
+                </div>
               )}
-            </button>
-            {isNotificationsOpen && (
-              <div className="absolute z-20 mt-2 w-72 origin-top-right right-0 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-800 dark:ring-slate-700">
-                <div className="p-2">
-                  <h3 className="px-2 py-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    Overdue Follow-ups ({overdueFollowUps.length})
-                  </h3>
-                </div>
-                <div className="py-1 max-h-80 overflow-y-auto">
-                  {overdueFollowUps.length > 0 ? (
-                    overdueFollowUps.map((lead) => (
-                      <button
-                        key={lead.id}
-                        onClick={() => {
-                          setCurrentView("leads");
-                          setIsNotificationsOpen(false);
-                        }}
-                        className="w-full text-left flex items-start gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                      >
-                        <AlertTriangleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-semibold">{lead.name}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Due on{" "}
-                            {new Date(
-                              lead.followUpDate!
-                            ).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </button>
-                    ))
-                  ) : (
-                    <p className="px-3 py-4 text-sm text-center text-slate-500 dark:text-slate-400">
-                      No overdue follow-ups. Great job!
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          {/* User area */}
-          <div className="ml-4 flex items-center gap-3">
-            <div className="text-right mr-2">
-              <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                {user?.email ?? "User"}
-              </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                {isAdmin ? "Admin" : "User"} {/* Show Role */}
-              </div>
             </div>
 
-            <button
-              onClick={logout}
-              className="px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-sm flex items-center gap-2 transition-colors"
-              aria-label="Sign out"
-            >
-              Sign out
-            </button>
+            {/* User area */}
+            <div className="flex items-center gap-3">
+              <div className="text-right mr-2 hidden sm:block">
+                <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                  {user?.email ?? "User"}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  {isAdmin ? "Admin" : "User"}
+                </div>
+              </div>
+
+              <button
+                onClick={logout}
+                className="px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-sm flex items-center gap-2 transition-colors"
+                aria-label="Sign out"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         </header>
+
         {/* CONTENT RENDERER */}
         <div className="flex-1 overflow-y-auto">{renderView()}</div>
       </main>
@@ -344,3 +406,4 @@ const MainLayout: React.FC = () => {
 };
 
 export default MainLayout;
+ 

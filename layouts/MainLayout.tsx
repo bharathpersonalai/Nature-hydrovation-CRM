@@ -13,6 +13,7 @@ import {
   GiftIcon,
   BellIcon,
   AlertTriangleIcon,
+  XCircleIcon,
 } from "../components/Icons";
 import Dashboard from "../components/Dashboard";
 import Inventory from "../components/Inventory";
@@ -24,7 +25,11 @@ import Referrals from "../components/Referrals";
 import StockRegistry from "../components/StockRegistry";
 import { useAuth, SignIn } from "../contexts/AuthContext";
 import { useUI } from "../contexts/UIContext";
-import { Lead } from "../types";
+import { Lead, Product, Order } from "../types";
+import { isAdminEmail } from "../config";
+
+// Notification tab type
+type NotificationTab = 'followups' | 'lowstock' | 'invoices' | 'newleads';
 
 // ✅ NEW: Hamburger Menu Icon Component
 const MenuIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -137,34 +142,92 @@ const MainLayout: React.FC = () => {
 
   const dataContext = useContext(DataContext);
   const leads = dataContext?.leads || [];
+  const products = dataContext?.products || [];
+  const orders = dataContext?.orders || [];
 
   const [currentView, setCurrentView] = useState<View>("dashboard");
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  
-  // ✅ NEW: Sidebar state
+  const [activeNotificationTab, setActiveNotificationTab] = useState<NotificationTab>('followups');
+
+  // Dismissed notifications state (cleared on page reload)
+  const [dismissedNotifications, setDismissedNotifications] = useState<Set<string>>(new Set());
+
+  // Sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
 
-  const ADMIN_EMAILS = [
-    "bharathpersonalai@gmail.com",
-    "naturehydrovation@gmail.com",
-  ];
-
-  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
+  // Use centralized admin check from config
+  const isAdmin = isAdminEmail(user?.email);
   const RESTRICTED_TABS: View[] = ["dashboard", "inventory", "stock-registry", "reports"];
 
   if (!user) {
     return <SignIn />;
   }
 
+  // 1. Overdue Follow-ups
   const overdueFollowUps = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return leads.filter(
-      (lead: Lead) => lead.followUpDate && new Date(lead.followUpDate) < today
+      (lead: Lead) =>
+        lead.followUpDate &&
+        new Date(lead.followUpDate) < today &&
+        !dismissedNotifications.has(`followup_${lead.id}`)
     );
-  }, [leads]);
+  }, [leads, dismissedNotifications]);
+
+  // 2. Low Stock Alerts
+  const lowStockProducts = useMemo(() => {
+    return products.filter(
+      (product: Product) =>
+        product.quantity <= product.lowStockThreshold &&
+        !dismissedNotifications.has(`lowstock_${product.id}`)
+    );
+  }, [products, dismissedNotifications]);
+
+  // 3. Unpaid Invoices (older than 7 days)
+  const unpaidInvoices = useMemo(() => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return orders.filter(
+      (order: Order) =>
+        order.paymentStatus === 'Unpaid' &&
+        new Date(order.orderDate) < sevenDaysAgo &&
+        !dismissedNotifications.has(`invoice_${order.id}`)
+    );
+  }, [orders, dismissedNotifications]);
+
+  // 4. New Leads Today
+  const newLeadsToday = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return leads.filter(
+      (lead: Lead) =>
+        new Date(lead.createdAt) >= today &&
+        !dismissedNotifications.has(`newlead_${lead.id}`)
+    );
+  }, [leads, dismissedNotifications]);
+
+  // Total notification count
+  const totalNotifications = overdueFollowUps.length + lowStockProducts.length + unpaidInvoices.length + newLeadsToday.length;
+
+  // Clear all notifications handler
+  const handleClearAllNotifications = () => {
+    const allIds: string[] = [];
+    leads.filter((lead: Lead) => lead.followUpDate && new Date(lead.followUpDate) < new Date()).forEach(l => allIds.push(`followup_${l.id}`));
+    products.filter((p: Product) => p.quantity <= p.lowStockThreshold).forEach(p => allIds.push(`lowstock_${p.id}`));
+    orders.filter((o: Order) => o.paymentStatus === 'Unpaid').forEach(o => allIds.push(`invoice_${o.id}`));
+    leads.forEach(l => allIds.push(`newlead_${l.id}`));
+    setDismissedNotifications(new Set(allIds));
+    setIsNotificationsOpen(false);
+  };
+
+  // Dismiss single notification handler
+  const handleDismissNotification = (notificationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissedNotifications(prev => new Set([...prev, notificationId]));
+  };
 
   // ✅ NEW: Close sidebar on outside click (mobile)
   useEffect(() => {
@@ -223,10 +286,10 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans">
-      
+
       {/* ✅ NEW: Mobile Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -265,11 +328,10 @@ const MainLayout: React.FC = () => {
             const isActive = currentView === view;
 
             const icon = React.cloneElement(viewConfig.icon, {
-              className: `w-5 h-5 ${
-                isActive
-                  ? viewConfig.color
-                  : "text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200"
-              }`,
+              className: `w-5 h-5 ${isActive
+                ? viewConfig.color
+                : "text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200"
+                }`,
             });
 
             return (
@@ -282,11 +344,10 @@ const MainLayout: React.FC = () => {
                     setIsSidebarOpen(false);
                   }
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors group ${
-                  isActive
-                    ? `${viewConfig.activeColor}`
-                    : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors group ${isActive
+                  ? `${viewConfig.activeColor}`
+                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                  }`}
               >
                 {icon}
                 <span>{viewConfig.label}</span>
@@ -314,7 +375,7 @@ const MainLayout: React.FC = () => {
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* ✅ UPDATED: HEADER with hamburger button */}
         <header className="h-16 bg-white dark:bg-slate-800 flex-shrink-0 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-700">
-          
+
           {/* ✅ NEW: Hamburger Menu Button */}
           <button
             onClick={() => setIsSidebarOpen(true)}
@@ -334,42 +395,171 @@ const MainLayout: React.FC = () => {
                 aria-label="Notifications"
               >
                 <BellIcon className="w-6 h-6" />
-                {overdueFollowUps.length > 0 && (
-                  <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" />
+                {totalNotifications > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center h-5 w-5 text-xs font-bold text-white bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-800">
+                    {totalNotifications > 9 ? '9+' : totalNotifications}
+                  </span>
                 )}
               </button>
               {isNotificationsOpen && (
-                <div className="absolute z-20 mt-2 w-72 origin-top-right right-0 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-800 dark:ring-slate-700">
-                  <div className="p-2">
-                    <h3 className="px-2 py-1 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                      Overdue Follow-ups ({overdueFollowUps.length})
+                <div className="fixed md:absolute inset-x-0 md:inset-x-auto bottom-0 md:bottom-auto z-50 md:z-20 mt-2 w-full md:w-96 origin-bottom md:origin-top-right right-0 rounded-t-2xl md:rounded-lg bg-white shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-slate-800 dark:ring-slate-700 overflow-hidden animate-slide-up md:animate-fade-in max-h-[80vh] md:max-h-none">
+                  {/* Header with Clear All */}
+                  <div className="p-3 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      Notifications ({totalNotifications})
                     </h3>
+                    {totalNotifications > 0 && (
+                      <button
+                        onClick={handleClearAllNotifications}
+                        className="px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                      >
+                        Clear All
+                      </button>
+                    )}
                   </div>
-                  <div className="py-1 max-h-80 overflow-y-auto">
-                    {overdueFollowUps.length > 0 ? (
-                      overdueFollowUps.map((lead) => (
-                        <button
-                          key={lead.id}
-                          onClick={() => {
-                            setCurrentView("leads");
-                            setIsNotificationsOpen(false);
-                          }}
-                          className="w-full text-left flex items-start gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                        >
-                          <AlertTriangleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="font-semibold">{lead.name}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              Due on{" "}
-                              {new Date(lead.followUpDate!).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <p className="px-3 py-4 text-sm text-center text-slate-500 dark:text-slate-400">
-                        No overdue follow-ups. Great job!
-                      </p>
+
+                  {/* Tab Navigation */}
+                  <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30">
+                    <button
+                      onClick={() => setActiveNotificationTab('followups')}
+                      className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${activeNotificationTab === 'followups'
+                        ? 'text-red-600 border-b-2 border-red-500 bg-white dark:bg-slate-800'
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                        }`}
+                    >
+                      Follow-ups {overdueFollowUps.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded-full text-xs dark:bg-red-900/30 dark:text-red-400">{overdueFollowUps.length}</span>}
+                    </button>
+                    <button
+                      onClick={() => setActiveNotificationTab('lowstock')}
+                      className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${activeNotificationTab === 'lowstock'
+                        ? 'text-orange-600 border-b-2 border-orange-500 bg-white dark:bg-slate-800'
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                        }`}
+                    >
+                      Low Stock {lowStockProducts.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded-full text-xs dark:bg-orange-900/30 dark:text-orange-400">{lowStockProducts.length}</span>}
+                    </button>
+                    <button
+                      onClick={() => setActiveNotificationTab('invoices')}
+                      className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${activeNotificationTab === 'invoices'
+                        ? 'text-purple-600 border-b-2 border-purple-500 bg-white dark:bg-slate-800'
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                        }`}
+                    >
+                      Invoices {unpaidInvoices.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded-full text-xs dark:bg-purple-900/30 dark:text-purple-400">{unpaidInvoices.length}</span>}
+                    </button>
+                    <button
+                      onClick={() => setActiveNotificationTab('newleads')}
+                      className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${activeNotificationTab === 'newleads'
+                        ? 'text-green-600 border-b-2 border-green-500 bg-white dark:bg-slate-800'
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                        }`}
+                    >
+                      New Leads {newLeadsToday.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-green-100 text-green-600 rounded-full text-xs dark:bg-green-900/30 dark:text-green-400">{newLeadsToday.length}</span>}
+                    </button>
+                  </div>
+
+                  {/* Tab Content */}
+                  <div className="max-h-72 overflow-y-auto">
+                    {/* Follow-ups Tab */}
+                    {activeNotificationTab === 'followups' && (
+                      <div className="py-1">
+                        {overdueFollowUps.length > 0 ? (
+                          overdueFollowUps.map((lead) => (
+                            <div key={lead.id} className="w-full flex items-start gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 group">
+                              <button onClick={() => { setCurrentView("leads"); setIsNotificationsOpen(false); }} className="flex-1 text-left flex items-start gap-3">
+                                <AlertTriangleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="font-semibold">{lead.name}</p>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">Due on {new Date(lead.followUpDate!).toLocaleDateString()}</p>
+                                </div>
+                              </button>
+                              <button onClick={(e) => handleDismissNotification(`followup_${lead.id}`, e)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-opacity" title="Dismiss">
+                                <CloseIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="px-3 py-6 text-sm text-center text-slate-500 dark:text-slate-400">No overdue follow-ups 🎉</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Low Stock Tab */}
+                    {activeNotificationTab === 'lowstock' && (
+                      <div className="py-1">
+                        {lowStockProducts.length > 0 ? (
+                          lowStockProducts.map((product) => (
+                            <div key={product.id} className="w-full flex items-start gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 group">
+                              <button onClick={() => { setCurrentView("inventory"); setIsNotificationsOpen(false); }} className="flex-1 text-left flex items-start gap-3">
+                                <XCircleIcon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${product.quantity === 0 ? 'text-red-500' : 'text-orange-500'}`} />
+                                <div>
+                                  <p className="font-semibold">{product.name}</p>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    {product.quantity === 0 ? 'Out of stock!' : `Only ${product.quantity} left (threshold: ${product.lowStockThreshold})`}
+                                  </p>
+                                </div>
+                              </button>
+                              <button onClick={(e) => handleDismissNotification(`lowstock_${product.id}`, e)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-opacity" title="Dismiss">
+                                <CloseIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="px-3 py-6 text-sm text-center text-slate-500 dark:text-slate-400">All products well stocked ✓</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Unpaid Invoices Tab */}
+                    {activeNotificationTab === 'invoices' && (
+                      <div className="py-1">
+                        {unpaidInvoices.length > 0 ? (
+                          unpaidInvoices.map((order) => (
+                            <div key={order.id} className="w-full flex items-start gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 group">
+                              <button onClick={() => { setCurrentView("billing"); setIsNotificationsOpen(false); }} className="flex-1 text-left flex items-start gap-3">
+                                <BillingIcon className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="font-semibold">{order.invoiceNumber}</p>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    ₹{order.totalAmount?.toFixed(2) || '0.00'} • {Math.floor((Date.now() - new Date(order.orderDate).getTime()) / (1000 * 60 * 60 * 24))} days overdue
+                                  </p>
+                                </div>
+                              </button>
+                              <button onClick={(e) => handleDismissNotification(`invoice_${order.id}`, e)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-opacity" title="Dismiss">
+                                <CloseIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="px-3 py-6 text-sm text-center text-slate-500 dark:text-slate-400">No overdue invoices 💰</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* New Leads Tab */}
+                    {activeNotificationTab === 'newleads' && (
+                      <div className="py-1">
+                        {newLeadsToday.length > 0 ? (
+                          newLeadsToday.map((lead) => (
+                            <div key={lead.id} className="w-full flex items-start gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 group">
+                              <button onClick={() => { setCurrentView("leads"); setIsNotificationsOpen(false); }} className="flex-1 text-left flex items-start gap-3">
+                                <LeadsIcon className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="font-semibold">{lead.name}</p>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    New lead from {lead.source || 'Unknown'} • {new Date(lead.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                </div>
+                              </button>
+                              <button onClick={(e) => handleDismissNotification(`newlead_${lead.id}`, e)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-opacity" title="Dismiss">
+                                <CloseIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="px-3 py-6 text-sm text-center text-slate-500 dark:text-slate-400">No new leads today</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -406,4 +596,3 @@ const MainLayout: React.FC = () => {
 };
 
 export default MainLayout;
- 

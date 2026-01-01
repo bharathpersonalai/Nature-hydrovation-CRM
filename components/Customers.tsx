@@ -424,26 +424,28 @@ const Customers: React.FC = () => {
   };
 
   return (
-    <div className="p-6 md:p-8">
+    <div className="p-4 md:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+      <div className="flex justify-between items-center mb-6 gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-200">
           Customers
         </h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => exportCustomersToCSV(filteredCustomers)}
-            className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+            className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-3 md:px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+            title="Export Customers"
           >
             <DownloadIcon className="w-5 h-5" />
-            Export Customers
+            <span className="hidden sm:inline">Export</span>
           </button>
           <button
             onClick={handleOpenAddModal}
-            className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors"
+            className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-3 md:px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors"
+            title="Add Customer"
           >
             <PlusCircleIcon className="w-5 h-5" />
-            Add Customer
+            <span className="hidden sm:inline">Add</span>
           </button>
         </div>
       </div>
@@ -494,12 +496,12 @@ const Customers: React.FC = () => {
             customerModalView === "details"
               ? selectedCustomer.name
               : customerModalView === "newOrder"
-              ? `Create Bill for ${selectedCustomer.name}` // ✅ CHANGE THIS
-              : customerModalView === "viewInvoice"
-              ? `Invoice ${viewingOrder?.invoiceNumber}`
-              : customerModalView === "viewReceipt"
-              ? `Receipt ${viewingOrder?.invoiceNumber.replace("INV", "RCPT")}`
-              : `Referral Slip for ${selectedCustomer.name}`
+                ? `Create Bill for ${selectedCustomer.name}` // ✅ CHANGE THIS
+                : customerModalView === "viewInvoice"
+                  ? `Invoice ${viewingOrder?.invoiceNumber}`
+                  : customerModalView === "viewReceipt"
+                    ? `Receipt ${viewingOrder?.invoiceNumber.replace("INV", "RCPT")}`
+                    : `Referral Slip for ${selectedCustomer.name}`
           }
           size={
             [
@@ -635,31 +637,28 @@ const Customers: React.FC = () => {
                     <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                       <button
                         onClick={() => setActiveCustomerTab("orders")}
-                        className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                          activeCustomerTab === "orders"
+                        className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeCustomerTab === "orders"
                             ? "border-brand-primary text-brand-primary"
                             : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
-                        }`}
+                          }`}
                       >
                         Order History
                       </button>
                       <button
                         onClick={() => setActiveCustomerTab("payments")}
-                        className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                          activeCustomerTab === "payments"
+                        className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeCustomerTab === "payments"
                             ? "border-brand-primary text-brand-primary"
                             : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
-                        }`}
+                          }`}
                       >
                         Payment History
                       </button>
                       <button
                         onClick={() => setActiveCustomerTab("referrals")}
-                        className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                          activeCustomerTab === "referrals"
+                        className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeCustomerTab === "referrals"
                             ? "border-brand-primary text-brand-primary"
                             : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
-                        }`}
+                          }`}
                       >
                         Referrals
                       </button>

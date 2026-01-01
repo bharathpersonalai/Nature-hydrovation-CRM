@@ -1,19 +1,19 @@
-import { useCallback } from 'react'; 
+import { useCallback } from 'react';
 import { Order, PaymentMethod, Product, Customer, OrderResult } from '../types';
 import { addToCollection, updateDocument, addStockHistoryEntry } from '../firebase/firestore';
 import { useUI } from '../contexts/UIContext';
 
 // This file contains all Order, Billing Status, and Referral Reward logic.
- 
+
 export const useOrderService = (orders: Order[], products: Product[], customers: Customer[]) => {
-    const { showToast } = useUI(); 
+    const { showToast } = useUI();
 
     // --- Order Creation (Invoice Generation - NO STOCK REDUCTION) ---
-    const addOrder = useCallback(async (newOrder: { 
-        customerId: string, 
+    const addOrder = useCallback(async (newOrder: {
+        customerId: string,
         items: { productId: string, quantity: number, discount: number }[],
         serviceFee?: number
-    }): Promise<OrderResult> => { 
+    }): Promise<OrderResult> => {
         try {
             if (!Array.isArray(newOrder.items) || newOrder.items.length === 0) {
                 showToast('No items in order.', 'error');
@@ -39,7 +39,7 @@ export const useOrderService = (orders: Order[], products: Product[], customers:
             }
 
             // 2. Generate Invoice Number and calculate totals
-            const datePrefix = new Date().toISOString().slice(0,10).replace(/-/g,'');
+            const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
             const dailyOrderCount = orders.filter(o => o.invoiceNumber?.startsWith(`INV-${datePrefix}`)).length;
             const sequence = String(dailyOrderCount + 1).padStart(2, '0');
             const invoiceNumber = `INV-${datePrefix}-${sequence}`;
@@ -72,15 +72,15 @@ export const useOrderService = (orders: Order[], products: Product[], customers:
 
             // 3. Write order document to Firestore
             const createdId = await addToCollection('orders', orderPayload);
-            
+
             // ✅ REMOVED: Stock reduction logic (moved to updateOrderStatus when marking as Paid)
 
             showToast(`Invoice ${invoiceNumber} created (Unpaid)`, 'success');
 
-            return { 
-                success: true, 
-                message: `Invoice #${invoiceNumber} created`, 
-                order: { id: createdId, ...orderPayload } as Order 
+            return {
+                success: true,
+                message: `Invoice #${invoiceNumber} created`,
+                order: { id: createdId, ...orderPayload } as Order
             };
         } catch (err: any) {
             console.error('[addOrder] caught error ->', err);
@@ -103,8 +103,8 @@ export const useOrderService = (orders: Order[], products: Product[], customers:
                 // ✅ NEW: If marking as Paid, reduce stock FIRST before updating status
                 if (status === 'Paid' && order.paymentStatus === 'Unpaid') {
                     // Get order items (handle both multi-item and legacy single-item orders)
-                    const orderItems = Array.isArray((order as any).items) 
-                        ? (order as any).items 
+                    const orderItems = Array.isArray((order as any).items)
+                        ? (order as any).items
                         : [{
                             productId: order.productId,
                             productName: order.productName,
@@ -162,13 +162,16 @@ export const useOrderService = (orders: Order[], products: Product[], customers:
                 if (status === 'Paid') {
                     const customer = customers.find(c => c.id === order.customerId);
                     if (customer) {
-                        const customerPaidOrders = orders.filter(o => o.customerId === customer.id && o.paymentStatus === 'Paid');
-                        
+                        // Exclude the current order from the count to avoid stale closure issues
+                        const customerPaidOrders = orders.filter(
+                            o => o.customerId === customer.id && o.paymentStatus === 'Paid' && o.id !== orderId
+                        );
+
                         // Check if this payment makes it the first paid order
-                        if (customerPaidOrders.length === 0 && !customer.referralCode) { 
+                        if (customerPaidOrders.length === 0 && !customer.referralCode) {
                             const uniqueId = Math.random().toString(36).substring(2, 6).toUpperCase();
                             newReferralCode = `NH-${(customer.id || '').toString().substring(5, 9)}-${uniqueId}`;
-                            
+
                             // Persist referral code to Firestore customer doc
                             await updateDocument('customers', customer.id, { referralCode: newReferralCode });
                             showToast(`Referral code generated for ${customer.name}!`, 'success');
@@ -209,7 +212,7 @@ export const useOrderService = (orders: Order[], products: Product[], customers:
             console.error('markRewardAsPaid error', err);
             showToast('Failed to mark reward as paid.', 'error');
         }
-    }, [showToast]); 
+    }, [showToast]);
 
     return {
         addOrder,

@@ -59,24 +59,24 @@ const StatCard: React.FC<StatCardProps> = ({
 
   return (
     <div
-      className={`bg-white p-5 rounded-xl shadow-sm dark:bg-slate-800 border-t-4 ${colorClasses.border}`}
+      className={`bg-white p-3 md:p-5 rounded-xl shadow-sm dark:bg-slate-800 border-t-4 ${colorClasses.border}`}
     >
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 md:gap-4">
         <div
-          className={`flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-full ${colorClasses.bg}`}
+          className={`flex-shrink-0 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full ${colorClasses.bg}`}
         >
           {icon}
         </div>
-        <div>
-          <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">
+        <div className="min-w-0">
+          <h3 className="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 truncate">
             {title}
           </h3>
-          <p className="text-2xl font-bold text-slate-800 mt-1 dark:text-slate-100">
+          <p className="text-lg md:text-2xl font-bold text-slate-800 mt-0.5 md:mt-1 dark:text-slate-100 truncate">
             {value}
           </p>
         </div>
       </div>
-      <p className="text-sm text-slate-400 mt-3 dark:text-slate-500 truncate">
+      <p className="text-xs md:text-sm text-slate-400 mt-2 md:mt-3 dark:text-slate-500 truncate">
         {description}
       </p>
     </div>
@@ -136,9 +136,9 @@ const Dashboard: React.FC = () => {
       .forEach((o) => {
         const dateKey = o?.orderDate
           ? new Date(o.orderDate).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            })
+            month: "short",
+            day: "numeric",
+          })
           : "Unknown";
         map[dateKey] = (map[dateKey] || 0) + getOrderAmount(o);
       });
@@ -156,16 +156,16 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="p-6 md:p-8">
-      <h1 className="text-3xl font-bold text-slate-800 mb-6 dark:text-slate-200">
+    <div className="p-4 md:p-6 lg:p-8">
+      <h1 className="text-2xl md:text-3xl font-bold text-slate-800 mb-6 dark:text-slate-200">
         Dashboard
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <StatCard
           title="Total Revenue"
           value={currency(totalRevenue)}
-          description="Paid sales only"  /* ✅ UPDATED description */ 
+          description="Paid sales only"  /* ✅ UPDATED description */
           icon={
             <RupeeIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
           }

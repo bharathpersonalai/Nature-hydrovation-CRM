@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react"; 
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useData } from "../contexts/DataContext"; // New Data Access
 import { useUI } from "../contexts/UIContext"; // UI Access (showToast)
 import { Product, StockHistoryEntry } from '../types';
@@ -19,12 +19,12 @@ const emptyProduct = {
 
 const Inventory = () => {
     // 1. Retrieve all data states AND business functions from the DataContext
-    const { 
+    const {
         products, suppliers, categories, viewingItem, clearViewingItem,
         addProduct, updateProduct, deleteProduct, // Product Service functions
         addSupplier, updateSupplier, removeSupplier, addCategory, updateCategory, removeCategory // List Service functions
     } = useData();
-    
+
     // 2. Retrieve UI functions
     const { showToast } = useUI();
 
@@ -38,23 +38,23 @@ const Inventory = () => {
     const [stockStatusFilter, setStockStatusFilter] = useState<string>('all');
     const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
-    
+
     // Stock Update State
     const [updateReason, setUpdateReason] = useState('');
     const [stockUpdateCategory, setStockUpdateCategory] = useState('');
     const [stockChange, setStockChange] = useState<number | string>('');
-    
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // List Manager Input States
     const [newSupplierName, setNewSupplierName] = useState('');
     const [newCategoryName, setNewCategoryName] = useState('');
     const [selectedSupplierForCategory, setSelectedSupplierForCategory] = useState('');
-    
+
     // List Manager Edit & Delete States
-    const [editingSupplier, setEditingSupplier] = useState<{original: string, current: string} | null>(null);
-    const [editingCategory, setEditingCategory] = useState<{originalName: string, supplier: string, current: string} | null>(null);
-    const [deleteConfirmation, setDeleteConfirmation] = useState<{type: 'supplier' | 'category', name: string, supplier?: string} | null>(null);
+    const [editingSupplier, setEditingSupplier] = useState<{ original: string, current: string } | null>(null);
+    const [editingCategory, setEditingCategory] = useState<{ originalName: string, supplier: string, current: string } | null>(null);
+    const [deleteConfirmation, setDeleteConfirmation] = useState<{ type: 'supplier' | 'category', name: string, supplier?: string } | null>(null);
 
 
     const openDetailModal = (product: Product) => {
@@ -107,7 +107,7 @@ const Inventory = () => {
                 }
             });
         }
-        
+
         return tempProducts;
     }, [products, searchQuery, distributorFilter, categoryFilter, stockStatusFilter]);
 
@@ -131,13 +131,13 @@ const Inventory = () => {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         const isNumericField = ['costPrice', 'sellingPrice', 'quantity', 'lowStockThreshold'].includes(name);
-        
+
         setFormData(prev => {
             // Handle empty string for numeric fields to avoid NaN and allow clearing input
             const newValue = isNumericField ? (value === '' ? '' : parseFloat(value)) : value;
-            
+
             const updated = { ...prev, [name]: newValue };
-            
+
             // If dealer changes, reset category if it's not valid for the new dealer
             if (name === 'dealer') {
                 const isValidCategory = categories.some(c => c.supplier === value && c.name === prev.category);
@@ -177,7 +177,7 @@ const Inventory = () => {
             fileInputRef.current.value = "";
         }
     };
-    
+
     const openAddModal = () => {
         setEditingProduct(null);
         // Default to first supplier if available
@@ -214,7 +214,7 @@ const Inventory = () => {
             setStockChange('');
         }, 300);
     };
-    
+
     const closeDetailModal = () => {
         setViewingProduct(null);
     };
@@ -239,7 +239,7 @@ const Inventory = () => {
         if (editingProduct) {
             const changeAmount = Number(stockChange) || 0;
             let finalReason: string | undefined = undefined;
-            
+
             const productToUpdate = { ...submittedData } as Product;
 
             if (changeAmount !== 0) {
@@ -247,18 +247,18 @@ const Inventory = () => {
                     setFormError('Please select a transaction category.');
                     return;
                 }
-                
+
                 const newQuantity = editingProduct.quantity + changeAmount;
                 if (newQuantity < 0) {
                     setFormError('Stock quantity cannot be negative.');
                     return;
                 }
                 productToUpdate.quantity = newQuantity;
-                
+
                 // Construct the final reason string: "Category: Note"
                 finalReason = `${stockUpdateCategory}${updateReason ? `: ${updateReason}` : ''}`;
             }
-            
+
             updateProduct(productToUpdate, finalReason);
         } else {
             addProduct({ ...submittedData, id: `prod_${Date.now()}` } as Product);
@@ -296,7 +296,7 @@ const Inventory = () => {
         }
 
         const headers = ["SKU", "Name", "Category", "Dealer", "Purchase Price", "Selling Price", "Quantity", "Low Stock Threshold"];
-        
+
         const escapeCsvField = (field: any) => {
             const str = String(field);
             if (str.includes(',') || str.includes('"') || str.includes('\n')) {
@@ -304,7 +304,7 @@ const Inventory = () => {
             }
             return str;
         };
-        
+
         const rows = filteredProducts.map(product => [
             product.sku,
             product.name,
@@ -317,7 +317,7 @@ const Inventory = () => {
         ].map(escapeCsvField).join(','));
 
         const csvContent = [headers.join(','), ...rows].join('\n');
-        
+
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
@@ -337,7 +337,7 @@ const Inventory = () => {
             setNewSupplierName('');
         }
     };
-    
+
     const handleAddCategory = (e: React.FormEvent) => {
         e.preventDefault();
         if (newCategoryName.trim() && selectedSupplierForCategory) {
@@ -350,20 +350,31 @@ const Inventory = () => {
 
 
     return (
-        <div className="p-6 md:p-8">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">Inventory</h1>
+        <div className="p-4 md:p-6 lg:p-8">
+            <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-200">Inventory</h1>
                 <div className="flex items-center gap-2">
-                    <button onClick={handleExport} className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors">
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-3 md:px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+                        title="Export Inventory"
+                    >
                         <DownloadIcon className="w-5 h-5" />
-                        Export
+                        <span className="hidden sm:inline">Export</span>
                     </button>
-                    <button onClick={() => setIsListManagerOpen(true)} className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors">
-                        Manage Products
+                    <button
+                        onClick={() => setIsListManagerOpen(true)}
+                        className="hidden sm:flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors"
+                    >
+                        Manage
                     </button>
-                    <button onClick={openAddModal} className="flex items-center gap-2 bg-brand-secondary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:opacity-90 transition-colors">
+                    <button
+                        onClick={openAddModal}
+                        className="flex items-center gap-2 bg-brand-secondary text-white font-semibold py-2 px-3 md:px-4 rounded-lg shadow-sm hover:opacity-90 transition-colors"
+                        title="Add Product"
+                    >
                         <PlusCircleIcon className="w-5 h-5" />
-                        Add Product
+                        <span className="hidden sm:inline">Add</span>
                     </button>
                 </div>
             </div>
@@ -485,9 +496,9 @@ const Inventory = () => {
                     <div className="space-y-4">
                         <h3 className="font-semibold text-slate-800 dark:text-slate-200">Suppliers / Dealers</h3>
                         <form onSubmit={handleAddSupplier} className="flex gap-2 items-stretch">
-                            <input 
-                                type="text" 
-                                placeholder="New Supplier Name" 
+                            <input
+                                type="text"
+                                placeholder="New Supplier Name"
                                 value={newSupplierName}
                                 onChange={(e) => setNewSupplierName(e.target.value)}
                                 className="flex-grow px-3 py-2 text-sm bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
@@ -502,10 +513,10 @@ const Inventory = () => {
                                     <li key={supplier} className="flex justify-between items-center px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
                                         {editingSupplier?.original === supplier ? (
                                             <div className="flex items-center gap-2 flex-grow">
-                                                <input 
-                                                    type="text" 
-                                                    value={editingSupplier.current} 
-                                                    onChange={(e) => setEditingSupplier({...editingSupplier, current: e.target.value})}
+                                                <input
+                                                    type="text"
+                                                    value={editingSupplier.current}
+                                                    onChange={(e) => setEditingSupplier({ ...editingSupplier, current: e.target.value })}
                                                     className="flex-grow px-2 py-1 text-sm border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
                                                     autoFocus
                                                 />
@@ -520,10 +531,10 @@ const Inventory = () => {
                                             <>
                                                 <span className="text-sm text-slate-700 dark:text-slate-300">{supplier}</span>
                                                 <div className="flex items-center gap-1">
-                                                    <button onClick={() => setEditingSupplier({original: supplier, current: supplier})} className="text-slate-400 hover:text-brand-primary p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                                                    <button onClick={() => setEditingSupplier({ original: supplier, current: supplier })} className="text-slate-400 hover:text-brand-primary p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
                                                         <PencilIcon className="w-4 h-4" />
                                                     </button>
-                                                    <button onClick={() => setDeleteConfirmation({type: 'supplier', name: supplier})} className="text-slate-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                                    <button onClick={() => setDeleteConfirmation({ type: 'supplier', name: supplier })} className="text-slate-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                                                         <TrashIcon className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -540,7 +551,7 @@ const Inventory = () => {
                     <div className="space-y-4">
                         <h3 className="font-semibold text-slate-800 dark:text-slate-200">Categories</h3>
                         <form onSubmit={handleAddCategory} className="space-y-2">
-                            <select 
+                            <select
                                 value={selectedSupplierForCategory}
                                 onChange={(e) => setSelectedSupplierForCategory(e.target.value)}
                                 className="block w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
@@ -549,9 +560,9 @@ const Inventory = () => {
                                 {suppliers.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                             <div className="flex gap-2 items-stretch">
-                                <input 
-                                    type="text" 
-                                    placeholder="New Category Name" 
+                                <input
+                                    type="text"
+                                    placeholder="New Category Name"
                                     value={newCategoryName}
                                     onChange={(e) => setNewCategoryName(e.target.value)}
                                     className="flex-grow px-3 py-2 text-sm bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
@@ -567,10 +578,10 @@ const Inventory = () => {
                                     <li key={`${cat.supplier}-${cat.name}-${index}`} className="flex justify-between items-center px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
                                         {editingCategory?.originalName === cat.name && editingCategory.supplier === cat.supplier ? (
                                             <div className="flex items-center gap-2 flex-grow">
-                                                <input 
-                                                    type="text" 
-                                                    value={editingCategory.current} 
-                                                    onChange={(e) => setEditingCategory({...editingCategory, current: e.target.value})}
+                                                <input
+                                                    type="text"
+                                                    value={editingCategory.current}
+                                                    onChange={(e) => setEditingCategory({ ...editingCategory, current: e.target.value })}
                                                     className="flex-grow px-2 py-1 text-sm border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100"
                                                     autoFocus
                                                 />
@@ -588,10 +599,10 @@ const Inventory = () => {
                                                     <span className="text-xs text-slate-500 dark:text-slate-400">for {cat.supplier}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1">
-                                                    <button onClick={() => setEditingCategory({originalName: cat.name, supplier: cat.supplier, current: cat.name})} className="text-slate-400 hover:text-brand-primary p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                                                    <button onClick={() => setEditingCategory({ originalName: cat.name, supplier: cat.supplier, current: cat.name })} className="text-slate-400 hover:text-brand-primary p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
                                                         <PencilIcon className="w-4 h-4" />
                                                     </button>
-                                                    <button onClick={() => setDeleteConfirmation({type: 'category', name: cat.name, supplier: cat.supplier})} className="text-slate-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                                    <button onClick={() => setDeleteConfirmation({ type: 'category', name: cat.name, supplier: cat.supplier })} className="text-slate-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                                                         <TrashIcon className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -609,7 +620,7 @@ const Inventory = () => {
                         Done
                     </button>
                 </div>
-                
+
                 {/* Confirmation Overlay */}
                 {deleteConfirmation && (
                     <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/50 rounded-xl p-4">
@@ -620,13 +631,13 @@ const Inventory = () => {
                                 {deleteConfirmation.type === 'supplier' && " This will also delete all associated categories."}
                             </p>
                             <div className="flex justify-end gap-3">
-                                <button 
+                                <button
                                     onClick={() => setDeleteConfirmation(null)}
                                     className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
                                 >
                                     Cancel
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => {
                                         if (deleteConfirmation.type === 'supplier') {
                                             removeSupplier(deleteConfirmation.name);
@@ -674,8 +685,8 @@ const Inventory = () => {
                             <p className="block text-sm font-medium text-slate-700 dark:text-slate-300">Product Image</p>
                             <p className="text-xs text-slate-400 mt-1">Max file size: 2MB.</p>
                             {formData.imageUrl && (
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     onClick={handleRemoveImage}
                                     className="mt-2 w-fit flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
                                 >
@@ -685,7 +696,7 @@ const Inventory = () => {
                             )}
                         </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label htmlFor="dealer" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Supplier</label>
@@ -728,11 +739,29 @@ const Inventory = () => {
                     )}
                     {editingProduct && (
                         <div className="border-t pt-4 space-y-4 dark:border-slate-700">
-                            <div>
+                            {/* Low Stock Threshold - Editable in Edit Mode */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label htmlFor="lowStockThreshold" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Low Stock Threshold</label>
+                                    <input
+                                        id="lowStockThreshold"
+                                        type="number"
+                                        name="lowStockThreshold"
+                                        value={formData.lowStockThreshold ?? ''}
+                                        onChange={handleInputChange}
+                                        className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
+                                        placeholder="e.g., 10"
+                                    />
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Products at or below this quantity will show as "Low Stock"</p>
+                                </div>
+                            </div>
+
+                            {/* Stock Update Section */}
+                            <div className="pt-2">
                                 <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">Update Stock</h4>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">Current stock: {editingProduct.quantity}. Enter a positive number to add stock, a negative number to remove.</p>
                             </div>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                                 <div className="col-span-1">
                                     <label htmlFor="stockChange" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Change Amount</label>
@@ -742,14 +771,14 @@ const Inventory = () => {
                                         if (!e.target.value) setStockUpdateCategory('');
                                     }} className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" />
                                 </div>
-                                
+
                                 {stockChange !== '' && Number(stockChange) !== 0 && (
                                     <div className="col-span-1">
                                         <label htmlFor="updateCategory" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Transaction Type</label>
-                                        <select 
-                                            id="updateCategory" 
-                                            value={stockUpdateCategory} 
-                                            onChange={(e) => setStockUpdateCategory(e.target.value)} 
+                                        <select
+                                            id="updateCategory"
+                                            value={stockUpdateCategory}
+                                            onChange={(e) => setStockUpdateCategory(e.target.value)}
                                             className="block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
                                             required
                                         >
@@ -804,7 +833,7 @@ const Inventory = () => {
                                 <span className="inline-block mt-1 px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full dark:bg-slate-700 dark:text-slate-300">{viewingProduct.category}</span>
                             </div>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4 dark:border-slate-700">
                             <p><span className="font-semibold text-slate-500 dark:text-slate-400">Supplier:</span> {viewingProduct.dealer}</p>
                             <p><span className="font-semibold text-slate-500 dark:text-slate-400">Purchase Price:</span> ₹{viewingProduct.costPrice.toFixed(2)}</p>

@@ -48,7 +48,7 @@ const getStatusColorClasses = (status: LeadStatus) => {
                 progress: 'bg-slate-500',
             };
         case LeadStatus.Converted:
-             return {
+            return {
                 bg: 'bg-slate-100 dark:bg-slate-800',
                 text: 'text-slate-500 dark:text-slate-500',
                 border: 'border-slate-400',
@@ -73,7 +73,7 @@ interface LeadPipelineProps {
 
 const LeadPipeline: React.FC<LeadPipelineProps> = ({ counts, total, activeFilter, onFilterChange }) => {
     const pipelineStages = [LeadStatus.New, LeadStatus.Contacted, LeadStatus.Qualified, LeadStatus.Lost];
-    
+
     return (
         <div className="mb-6">
             <div className="flex flex-col md:flex-row items-stretch gap-2">
@@ -97,8 +97,8 @@ const LeadPipeline: React.FC<LeadPipelineProps> = ({ counts, total, activeFilter
                                 <div className={`font-semibold ${colors.text}`}>{stage}</div>
                                 <div className={`text-3xl font-bold mt-1 ${colors.text.replace('text-', 'dark:text-')}`}>{count}</div>
                                 <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/10 dark:bg-white/10">
-                                    <div 
-                                        className={`${colors.progress} h-full rounded-r-full`} 
+                                    <div
+                                        className={`${colors.progress} h-full rounded-r-full`}
                                         style={{ width: `${percentage}%` }}
                                     ></div>
                                 </div>
@@ -118,17 +118,17 @@ const LeadPipeline: React.FC<LeadPipelineProps> = ({ counts, total, activeFilter
 
 
 const Leads = () => {
-    const { 
-    leads, 
-    viewingItem, 
-    clearViewingItem,
-    addLead, 
-    updateLead, 
-    convertLeadToCustomer, 
-    deleteLead, 
-    deleteMultipleLeads 
-} = useData();
-const { showToast } = useUI(); 
+    const {
+        leads,
+        viewingItem,
+        clearViewingItem,
+        addLead,
+        updateLead,
+        convertLeadToCustomer,
+        deleteLead,
+        deleteMultipleLeads
+    } = useData();
+    const { showToast } = useUI();
 
     const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
     const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -137,7 +137,7 @@ const { showToast } = useUI();
     const [formData, setFormData] = useState<typeof emptyLead>(emptyLead);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
-    
+
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [leadsToDelete, setLeadsToDelete] = useState<string[]>([]);
@@ -177,7 +177,7 @@ const { showToast } = useUI();
     const filteredLeads = useMemo(() => {
         // Filter out converted leads from the main table view as they are now customers.
         let tempLeads = leads.filter(lead => lead.status !== LeadStatus.Converted);
-        
+
         if (searchQuery) {
             tempLeads = tempLeads.filter(lead =>
                 lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -198,7 +198,7 @@ const { showToast } = useUI();
 
     const handleOpenEditModal = (lead: Lead) => {
         setEditingLead(lead);
-        setFormData({ ...lead, referralCode: ''});
+        setFormData({ ...lead, referralCode: '' });
         setIsAddEditModalOpen(true);
     };
 
@@ -206,11 +206,11 @@ const { showToast } = useUI();
         const { name, value } = e.target;
         setFormData(p => ({ ...p, [name]: value }));
     };
-    
+
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const { referralCode, ...leadData } = formData;
-        
+
         // Ensure empty date string is saved as undefined
         if (leadData.followUpDate === '') {
             leadData.followUpDate = undefined;
@@ -225,10 +225,10 @@ const { showToast } = useUI();
         setEditingLead(null);
         setFormData(emptyLead);
     };
-    
+
     // Selection Logic
     const handleSelectLead = (leadId: string) => {
-        setSelectedLeads(prev => 
+        setSelectedLeads(prev =>
             prev.includes(leadId) ? prev.filter(id => id !== leadId) : [...prev, leadId]
         );
     };
@@ -262,13 +262,13 @@ const { showToast } = useUI();
         if (!lead.followUpDate) return <span className="text-slate-400">—</span>;
 
         const today = new Date();
-        today.setHours(0,0,0,0);
+        today.setHours(0, 0, 0, 0);
         const followUpDate = new Date(lead.followUpDate);
-        followUpDate.setHours(0,0,0,0); // Compare dates only
+        followUpDate.setHours(0, 0, 0, 0); // Compare dates only
 
         const isOverdue = followUpDate < today;
         const isToday = followUpDate.getTime() === today.getTime();
-        
+
         const formattedDate = new Date(lead.followUpDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
         if (isOverdue) {
@@ -297,34 +297,34 @@ const { showToast } = useUI();
 
 
     return (
-        <div className="p-6 md:p-8">
-            <div className="flex justify-between items-center mb-6 relative">
-                 {selectedLeads.length > 0 ? (
-                    <div className="absolute inset-0 bg-brand-light dark:bg-slate-800 flex items-center justify-between px-4 rounded-lg animate-fade-in z-10">
-                        <span className="text-sm font-semibold text-brand-primary dark:text-slate-200">{selectedLeads.length} lead(s) selected</span>
+        <div className="p-4 md:p-6 lg:p-8">
+            <div className="flex justify-between items-center mb-6 relative gap-4">
+                {selectedLeads.length > 0 ? (
+                    <div className="absolute inset-0 bg-brand-light dark:bg-slate-800 flex items-center justify-between px-3 md:px-4 rounded-lg animate-fade-in z-10">
+                        <span className="text-sm font-semibold text-brand-primary dark:text-slate-200">{selectedLeads.length} selected</span>
                         <div className="flex items-center gap-2">
-                           <button onClick={() => openConfirmDeleteModal(selectedLeads)} className="flex items-center gap-2 bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-red-700 transition-colors">
+                            <button onClick={() => openConfirmDeleteModal(selectedLeads)} className="flex items-center gap-2 bg-red-600 text-white font-semibold py-2 px-3 md:px-4 rounded-lg shadow-sm hover:bg-red-700 transition-colors">
                                 <TrashIcon className="w-5 h-5" />
-                                Delete Selected
+                                <span className="hidden sm:inline">Delete</span>
                             </button>
-                             <button onClick={() => setSelectedLeads([])} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200" aria-label="Clear selection">
+                            <button onClick={() => setSelectedLeads([])} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 p-1" aria-label="Clear selection">
                                 <XIcon className="w-6 h-6" />
                             </button>
                         </div>
                     </div>
                 ) : (
                     <>
-                        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">Leads</h1>
-                        <button onClick={handleOpenAddModal} className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors">
+                        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-200">Leads</h1>
+                        <button onClick={handleOpenAddModal} className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-3 md:px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors">
                             <PlusCircleIcon className="w-5 h-5" />
-                            Add Lead
+                            <span className="hidden sm:inline">Add Lead</span>
                         </button>
                     </>
                 )}
             </div>
 
-            <LeadPipeline 
-                counts={leadCounts} 
+            <LeadPipeline
+                counts={leadCounts}
                 total={totalPipelineLeads}
                 activeFilter={statusFilter}
                 onFilterChange={(status) => setStatusFilter(status)}
@@ -349,15 +349,85 @@ const { showToast } = useUI();
             </div>
 
             <div className="bg-white rounded-lg shadow-sm overflow-hidden dark:bg-slate-800">
-                <div className="overflow-x-auto">
-                     {leads.length > 0 ? (
+                {/* Mobile Card View */}
+                <div className="md:hidden">
+                    {leads.length > 0 ? (
+                        filteredLeads.length > 0 ? (
+                            <div className="divide-y dark:divide-slate-700">
+                                {filteredLeads.map(lead => (
+                                    <div
+                                        key={lead.id}
+                                        className={`p-4 ${selectedLeads.includes(lead.id) ? 'bg-brand-light dark:bg-slate-700' : ''}`}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedLeads.includes(lead.id)}
+                                                onChange={() => handleSelectLead(lead.id)}
+                                                className="mt-1 w-5 h-5 text-brand-primary bg-slate-100 border-slate-300 rounded focus:ring-brand-primary dark:bg-slate-700 dark:border-slate-600"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate">{lead.name}</h3>
+                                                    <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColorClasses(lead.status).bg} ${getStatusColorClasses(lead.status).text}`}>
+                                                        {lead.status}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-slate-500 dark:text-slate-400 truncate mt-1">{lead.email}</p>
+                                                <p className="text-sm text-slate-400 dark:text-slate-500">{lead.phone}</p>
+
+                                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                                                    <div className="flex items-center gap-2 text-sm">
+                                                        {renderFollowUpDate(lead)}
+                                                        {lead.source && <span className="text-slate-400">•</span>}
+                                                        <span className="text-slate-400 dark:text-slate-500">{lead.source}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        {lead.status !== LeadStatus.Converted && lead.status === LeadStatus.Qualified && (
+                                                            <button
+                                                                onClick={() => convertLeadToCustomer(lead)}
+                                                                className="text-xs font-semibold text-brand-secondary"
+                                                            >
+                                                                Convert
+                                                            </button>
+                                                        )}
+                                                        <button onClick={() => handleOpenEditModal(lead)} className="p-2 text-slate-400 hover:text-brand-primary" aria-label="Edit">
+                                                            <PencilIcon className="w-5 h-5" />
+                                                        </button>
+                                                        <button onClick={() => openConfirmDeleteModal([lead.id])} className="p-2 text-slate-400 hover:text-red-600" aria-label="Delete">
+                                                            <TrashIcon className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-16 px-4">
+                                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">No Leads Found</h3>
+                                <p className="text-slate-500 mt-2 dark:text-slate-400">Your search didn't return any results.</p>
+                            </div>
+                        )
+                    ) : (
+                        <div className="text-center py-16 px-4">
+                            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">No leads in pipeline</h3>
+                            <p className="text-slate-500 mt-2 dark:text-slate-400">Tap "Add Lead" to get started.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                    {leads.length > 0 ? (
                         filteredLeads.length > 0 ? (
                             <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
                                 <thead className="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-300">
                                     <tr>
                                         <th scope="col" className="p-4">
-                                            <input 
-                                                type="checkbox" 
+                                            <input
+                                                type="checkbox"
                                                 onChange={handleSelectAllLeads}
                                                 checked={selectedLeads.length > 0 && selectedLeads.length === filteredLeads.length}
                                                 className="w-4 h-4 text-brand-primary bg-slate-100 border-slate-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-slate-800 dark:bg-slate-700 dark:border-slate-600"
@@ -375,8 +445,8 @@ const { showToast } = useUI();
                                     {filteredLeads.map(lead => (
                                         <tr key={lead.id} className={`border-b dark:border-slate-700 transition-colors ${selectedLeads.includes(lead.id) ? 'bg-brand-light dark:bg-slate-700' : 'bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700'}`}>
                                             <td className="p-4">
-                                                <input 
-                                                    type="checkbox" 
+                                                <input
+                                                    type="checkbox"
                                                     checked={selectedLeads.includes(lead.id)}
                                                     onChange={() => handleSelectLead(lead.id)}
                                                     className="w-4 h-4 text-brand-primary bg-slate-100 border-slate-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-slate-800 dark:bg-slate-700 dark:border-slate-600"
@@ -409,8 +479,8 @@ const { showToast } = useUI();
                                                     {lead.status === LeadStatus.Converted ? (
                                                         <span className="font-medium text-slate-500 dark:text-slate-400">Converted</span>
                                                     ) : (
-                                                        <button 
-                                                            onClick={() => convertLeadToCustomer(lead)} 
+                                                        <button
+                                                            onClick={() => convertLeadToCustomer(lead)}
                                                             disabled={lead.status !== LeadStatus.Qualified}
                                                             className="font-medium text-brand-secondary hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline">
                                                             Convert
@@ -419,7 +489,7 @@ const { showToast } = useUI();
                                                     <span className="text-slate-300 dark:text-slate-600">|</span>
                                                     <div className="flex items-center gap-2">
                                                         <button onClick={() => handleOpenEditModal(lead)} className="text-slate-400 hover:text-brand-primary transition-colors" aria-label="Edit lead">
-                                                          <PencilIcon className="w-5 h-5" />
+                                                            <PencilIcon className="w-5 h-5" />
                                                         </button>
                                                         <button onClick={() => openConfirmDeleteModal([lead.id])} className="text-slate-400 hover:text-red-600 transition-colors" aria-label="Delete lead">
                                                             <TrashIcon className="w-5 h-5" />
@@ -432,20 +502,20 @@ const { showToast } = useUI();
                                 </tbody>
                             </table>
                         ) : (
-                             <div className="text-center py-16">
+                            <div className="text-center py-16">
                                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">No Leads Found</h3>
                                 <p className="text-slate-500 mt-2 dark:text-slate-400">Your search and filter combination did not return any results.</p>
                             </div>
                         )
-                     ) : (
-                         <div className="text-center py-16">
+                    ) : (
+                        <div className="text-center py-16">
                             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">No leads in pipeline</h3>
                             <p className="text-slate-500 mt-2 dark:text-slate-400">Click "Add Lead" to get started.</p>
                         </div>
-                     )}
+                    )}
                 </div>
             </div>
-            
+
             <Modal isOpen={isAddEditModalOpen} onClose={() => setIsAddEditModalOpen(false)} title={editingLead ? "Edit Lead" : "Add New Lead"}>
                 <form onSubmit={handleFormSubmit} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -454,7 +524,7 @@ const { showToast } = useUI();
                         <input type="tel" name="phone" placeholder="Phone" value={formData.phone} onChange={handleFormChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" />
                         <input type="text" name="source" placeholder="Lead Source (e.g., Website)" value={formData.source} onChange={handleFormChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" />
                     </div>
-                     {!editingLead && (
+                    {!editingLead && (
                         <input type="text" name="referralCode" placeholder="Referral Code (Optional)" value={formData.referralCode} onChange={handleFormChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" />
                     )}
                     <div>
@@ -466,7 +536,7 @@ const { showToast } = useUI();
                     <div className="border-t pt-4 dark:border-slate-700">
                         <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">Follow-up Reminder (Optional)</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                             <div>
+                            <div>
                                 <label htmlFor="followUpDate" className="block text-xs font-medium text-slate-500 dark:text-slate-400">Date</label>
                                 <input type="date" name="followUpDate" id="followUpDate" value={formData.followUpDate ? formData.followUpDate.split('T')[0] : ''} onChange={handleFormChange} className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" />
                             </div>
@@ -481,7 +551,7 @@ const { showToast } = useUI();
                     </div>
                 </form>
             </Modal>
-            
+
             <Modal isOpen={isDetailModalOpen} onClose={() => setIsDetailModalOpen(false)} title="Lead Details">
                 {viewingLead && (
                     <div className="space-y-4">
@@ -491,9 +561,9 @@ const { showToast } = useUI();
                             <p className="text-sm text-slate-500 dark:text-slate-400">{viewingLead.phone}</p>
                         </div>
                         <div className="border-t pt-4 dark:border-slate-700 grid grid-cols-2 gap-4 text-sm">
-                             <p><span className="font-semibold text-slate-500 dark:text-slate-400">Status:</span> {viewingLead.status}</p>
-                             <p><span className="font-semibold text-slate-500 dark:text-slate-400">Source:</span> {viewingLead.source}</p>
-                             <p><span className="font-semibold text-slate-500 dark:text-slate-400">Created:</span> {new Date(viewingLead.createdAt).toLocaleDateString()}</p>
+                            <p><span className="font-semibold text-slate-500 dark:text-slate-400">Status:</span> {viewingLead.status}</p>
+                            <p><span className="font-semibold text-slate-500 dark:text-slate-400">Source:</span> {viewingLead.source}</p>
+                            <p><span className="font-semibold text-slate-500 dark:text-slate-400">Created:</span> {new Date(viewingLead.createdAt).toLocaleDateString()}</p>
                         </div>
                         {viewingLead.followUpDate && (
                             <div className="border-t pt-4 dark:border-slate-700 text-sm">
@@ -505,7 +575,7 @@ const { showToast } = useUI();
                     </div>
                 )}
             </Modal>
-            
+
             <Modal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} title="Confirm Deletion">
                 <div>
                     <p className="text-slate-600 dark:text-slate-300">

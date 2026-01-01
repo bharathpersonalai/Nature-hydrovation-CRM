@@ -8,9 +8,32 @@ import {
   onSnapshot,
   query,
   where,
+  getDocs,
 } from "firebase/firestore";
-import { getDoc } from "firebase/firestore"; // place this near the other imports at top if not already present
+import { getDoc } from "firebase/firestore";
 import { db } from "./firebaseConfig";
+
+/**
+ * Find a document by a specific field value
+ * @param collectionName - name of firestore collection
+ * @param fieldName - the field to search by
+ * @param fieldValue - the value to match
+ * @returns document with id or null if not found
+ */
+export async function findDocumentByField(
+  collectionName: string,
+  fieldName: string,
+  fieldValue: any
+): Promise<{ id: string; [key: string]: any } | null> {
+  const colRef = collection(db, collectionName);
+  const q = query(colRef, where(fieldName, "==", fieldValue));
+  const snapshot = await getDocs(q);
+  
+  if (snapshot.empty) return null;
+  
+  const docSnap = snapshot.docs[0];
+  return { id: docSnap.id, ...docSnap.data() };
+}
 
 /**
  * Add a new document to any collection

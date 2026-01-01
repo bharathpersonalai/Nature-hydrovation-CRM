@@ -14,6 +14,7 @@ import {
   sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth } from "../firebase/firebaseConfig";
+import { isAdminEmail } from "../config";
 
 // AuthContext Type Definition
 interface AuthContextType {
@@ -119,15 +120,8 @@ export const SignIn: React.FC = () => {
     setResetMessage("");
     setResetLoading(true);
 
-    // ✅ Client-side validation for known admin emails
-    const ADMIN_EMAILS = [
-      "bharathpersonalai@gmail.com",
-      "naturehydrovation@gmail.com",
-    ];
-
-    const normalizedEmail = resetEmail.trim().toLowerCase();
-    
-    if (!ADMIN_EMAILS.includes(normalizedEmail)) {
+    // Validate against known admin emails using centralized config
+    if (!isAdminEmail(resetEmail)) {
       setResetError(
         "This email is not registered as an admin. Please contact your administrator."
       );
@@ -148,7 +142,7 @@ export const SignIn: React.FC = () => {
       }, 3000);
     } catch (err: any) {
       console.error("Password reset error:", err);
-      
+
       if (err.code === "auth/invalid-email") {
         setResetError("Invalid email format");
       } else if (err.code === "auth/too-many-requests") {

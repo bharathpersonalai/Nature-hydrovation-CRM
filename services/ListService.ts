@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { addToCollection, updateDocument, deleteDocument } from '../firebase/firestore';
+import { addToCollection, updateDocument, deleteDocument, findDocumentByField } from '../firebase/firestore';
 import { useUI } from '../contexts/UIContext';
 import { ProductCategory } from '../types';
 
@@ -8,10 +8,10 @@ import { ProductCategory } from '../types';
 export const useListService = (
     categories: ProductCategory[],
     setCategories: React.Dispatch<React.SetStateAction<ProductCategory[]>>
-) => { 
+) => {
     const { showToast } = useUI();
 
-    // 1. Supplier CRUD (Requires Firestore changes to be fully effective, relies on listener for client-side update)
+    // 1. Supplier CRUD
     const addSupplier = useCallback(async (name: string) => {
         if (!name) return;
         try {
@@ -26,49 +26,78 @@ export const useListService = (
 
     const updateSupplier = useCallback(async (oldName: string, newName: string) => {
         if (!oldName || !newName || oldName === newName) return;
-        
+
         try {
-            // NOTE: A complete system needs to fetch the Firestore ID for the supplier and update that document.
-            // For now, we update client state as a fallback and use a warning toast.
-            // The logic below ensures that categories referencing the old supplier name are updated in client memory.
-            
-            // This manual client-side state update is kept to mirror the original file's behavior where possible:
-            setCategories(prev => prev.map(c => c.supplier === oldName ? { ...c, supplier: newName } : c));
-            
-            showToast(`Supplier name updated to ${newName}! (Requires back-end Firestore ID logic for persistence)`, 'warning');
-            
+            // Find the supplier document by name
+            const supplierDoc = await findDocumentByField("suppliers", "name", oldName);
+
+            if (!supplierDoc) {
+                showToast(`Supplier '${oldName}' not found in database.`, 'error');
+                return;
+            }
+
+            // Update the supplier document in Firestore
+            await updateDocument("suppliers", supplierDoc.id, { name: newName.trim() });
+
+            // Also update all categories that reference this supplier
+            const categoriesToUpdate = categories.filter(c => c.supplier === oldName);
+            for (const cat of categoriesToUpdate) {
+                if ((cat as any).id) {
+                    await updateDocument("categories", (cat as any).id, { supplier: newName.trim() });
+                }
+            }
+
+            showToast(`Supplier updated to '${newName}' successfully!`, 'success');
         } catch (e) {
             console.error('Error updating supplier:', e);
             showToast('Failed to update supplier.', 'error');
         }
-    }, [showToast, setCategories]); // setCategories must be in dependency array
+    }, [showToast, categories]);
 
     const removeSupplier = useCallback(async (name: string) => {
         if (!name) return;
         try {
-            // NOTE: A complete system would find the Firestore ID and cascade delete.
-            showToast(`Supplier '${name}' deleted! (Requires back-end Firestore ID logic for persistence)`, 'success');
+            // Find the supplier document by name
+            const supplierDoc = await findDocumentByField("suppliers", "name", name);
+
+            if (!supplierDoc) {
+                showToast(`Supplier '${name}' not found in database.`, 'error');
+                return;
+            }
+
+            // Delete all categories associated with this supplier first
+            const categoriesToDelete = categories.filter(c => c.supplier === name);
+            for (const cat of categoriesToDelete) {
+                if ((cat as any).id) {
+                    await deleteDocument("categories", (cat as any).id);
+                }
+            }
+
+            // Delete the supplier document
+            await deleteDocument("suppliers", supplierDoc.id);
+
+            showToast(`Supplier '${name}' and its categories deleted successfully!`, 'success');
         } catch (e) {
             console.error('Error removing supplier:', e);
             showToast('Failed to remove supplier.', 'error');
         }
-    }, [showToast]);
+    }, [showToast, categories]);
 
     // 2. Category CRUD 
     const addCategory = useCallback(async (name: string, supplier: string) => {
         if (!name || !supplier) return;
         try {
             // Awaiting Firestore write, listener will update the 'categories' state array in DataContext
-            await addToCollection("categories", { 
-                name: name.trim(), 
-                supplier: supplier.trim() 
+            await addToCollection("categories", {
+                name: name.trim(),
+                supplier: supplier.trim()
             });
             showToast('Category added successfully!', 'success');
         } catch (error) {
             console.error("Error adding category:", error);
             showToast('Failed to add category.', 'error');
         }
-    }, [showToast]); 
+    }, [showToast]);
 
     const updateCategory = useCallback(async (oldName: string, supplier: string, newName: string) => {
         if (!oldName || !newName) return;

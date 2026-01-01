@@ -38,9 +38,9 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onView, onEdit
     setSortConfig({ key, direction });
   };
 
-  const SortableHeader: React.FC<{ children: React.ReactNode; sortKey: SortableKey }> = ({ 
-    children, 
-    sortKey 
+  const SortableHeader: React.FC<{ children: React.ReactNode; sortKey: SortableKey }> = ({
+    children,
+    sortKey
   }) => {
     const isSorting = sortConfig?.key === sortKey;
     const icon = isSorting ? (
@@ -68,7 +68,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onView, onEdit
   if (customers.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm overflow-hidden dark:bg-slate-800">
-        <div className="text-center py-16">
+        <div className="text-center py-16 px-4">
           <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
             No customers yet
           </h3>
@@ -83,7 +83,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onView, onEdit
   if (sortedCustomers.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm overflow-hidden dark:bg-slate-800">
-        <div className="text-center py-16">
+        <div className="text-center py-16 px-4">
           <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
             No Customers Found
           </h3>
@@ -97,7 +97,46 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onView, onEdit
 
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden dark:bg-slate-800">
-      <div className="overflow-x-auto">
+      {/* Mobile Card View */}
+      <div className="md:hidden divide-y dark:divide-slate-700">
+        {sortedCustomers.map((customer) => (
+          <div key={customer.id} className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate">{customer.name}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 truncate mt-0.5">{customer.email}</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500">{customer.phone}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => onEdit(customer)}
+                  className="p-2 text-slate-400 hover:text-brand-primary rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+                  aria-label="Edit customer"
+                >
+                  <PencilIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            {customer.address && (
+              <p className="text-sm text-slate-400 dark:text-slate-500 mt-2 truncate">📍 {customer.address}</p>
+            )}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+              <span className="text-xs text-slate-400 dark:text-slate-500">
+                Customer since {new Date(customer.createdAt).toLocaleDateString()}
+              </span>
+              <button
+                onClick={() => onView(customer)}
+                className="text-sm font-semibold text-brand-primary hover:underline"
+              >
+                View Details →
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
           <thead className="text-xs text-slate-700 bg-slate-50 dark:bg-slate-700 dark:text-slate-300">
             <tr>

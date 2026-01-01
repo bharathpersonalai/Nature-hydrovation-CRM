@@ -11,7 +11,7 @@ import {
   PdfIcon,
   FileTextIcon,
   ReceiptIcon,
-  DownloadIcon, 
+  DownloadIcon,
   SearchIcon,
 } from "./Icons";
 import html2canvas from 'html2canvas';
@@ -22,13 +22,13 @@ declare var html2pdf: any;
 type BillingTab = "invoices" | "receipts";
 
 const Billing: React.FC = () => {
-  const { 
-    orders, 
-    customers, 
+  const {
+    orders,
+    customers,
     products, // Critical: Needed to look up product names for the receipt
-    brandingSettings, 
-    updateOrderStatus, 
-    updateInvoiceStatus 
+    brandingSettings,
+    updateOrderStatus,
+    updateInvoiceStatus
   } = useData();
   const { showToast } = useUI();
 
@@ -50,7 +50,7 @@ const Billing: React.FC = () => {
   // --- HELPER 1: Calculate Total for an Order (for the list view) ---
   const getOrderAmount = (order: any): number => {
     let total = 0;
-    
+
     // Case A: Multi-item order
     if (Array.isArray(order?.items) && order.items.length > 0) {
       total = order.items.reduce((s: number, it: any) => {
@@ -61,7 +61,7 @@ const Billing: React.FC = () => {
         const disc = Number(it?.discount ?? 0) || 0;
         return s + (unit - disc) * qty;
       }, 0);
-    } 
+    }
     // Case B: Single-item order
     else {
       const product = products.find(p => p.id === order.productId);
@@ -70,7 +70,7 @@ const Billing: React.FC = () => {
       const disc = Number(order?.discount ?? 0) || 0;
       total = (unit - disc) * qty;
     }
-    
+
     return total;
   };
 
@@ -78,40 +78,40 @@ const Billing: React.FC = () => {
   const getInvoiceLines = (invoiceNumber: string) => {
     const relatedOrders = orders.filter(o => o.invoiceNumber === invoiceNumber);
     const lines: any[] = [];
-    
+
     relatedOrders.forEach(order => {
-         if (Array.isArray((order as any).items) && (order as any).items.length > 0) {
-            // Map multi-items
-            const mapped = (order as any).items.map((it: any, idx: number) => {
-                // Lookup product to get the Name if it's missing in the order
-                const product = products.find(p => p.id === it.productId);
-                return {
-                    id: `${order.id}_${idx}`,
-                    // Logic: Item Name -> Catalog Name -> Fallback
-                    productName: it.productName ?? it.name ?? product?.name ?? 'Item', 
-                    quantity: Number(it.quantity ?? 0),
-                    salePrice: Number(it.salePrice ?? it.price ?? product?.sellingPrice ?? 0),
-                    discount: Number(it.discount ?? 0),
-                    invoiceNumber: order.invoiceNumber,
-                    orderDate: order.orderDate,
-                    paymentStatus: order.paymentStatus
-                };
-            });
-            lines.push(...mapped);
-         } else {
-             // Map single-item
-             const product = products.find(p => p.id === order.productId);
-             lines.push({
-                 id: order.id,
-                 productName: (order as any).productName ?? product?.name ?? 'Product',
-                 quantity: Number(order.quantity ?? 0),
-                 salePrice: Number(order.salePrice ?? product?.sellingPrice ?? 0),
-                 discount: Number(order.discount ?? 0),
-                 invoiceNumber: order.invoiceNumber,
-                 orderDate: order.orderDate,
-                 paymentStatus: order.paymentStatus
-             });
-         }
+      if (Array.isArray((order as any).items) && (order as any).items.length > 0) {
+        // Map multi-items
+        const mapped = (order as any).items.map((it: any, idx: number) => {
+          // Lookup product to get the Name if it's missing in the order
+          const product = products.find(p => p.id === it.productId);
+          return {
+            id: `${order.id}_${idx}`,
+            // Logic: Item Name -> Catalog Name -> Fallback
+            productName: it.productName ?? it.name ?? product?.name ?? 'Item',
+            quantity: Number(it.quantity ?? 0),
+            salePrice: Number(it.salePrice ?? it.price ?? product?.sellingPrice ?? 0),
+            discount: Number(it.discount ?? 0),
+            invoiceNumber: order.invoiceNumber,
+            orderDate: order.orderDate,
+            paymentStatus: order.paymentStatus
+          };
+        });
+        lines.push(...mapped);
+      } else {
+        // Map single-item
+        const product = products.find(p => p.id === order.productId);
+        lines.push({
+          id: order.id,
+          productName: (order as any).productName ?? product?.name ?? 'Product',
+          quantity: Number(order.quantity ?? 0),
+          salePrice: Number(order.salePrice ?? product?.sellingPrice ?? 0),
+          discount: Number(order.discount ?? 0),
+          invoiceNumber: order.invoiceNumber,
+          orderDate: order.orderDate,
+          paymentStatus: order.paymentStatus
+        });
+      }
     });
     return lines;
   };
@@ -131,7 +131,7 @@ const Billing: React.FC = () => {
 
     orders.forEach((order: any) => {
       const invoice = order?.invoiceNumber ?? `INV-${order.id}`;
-      
+
       if (!grouped[invoice]) {
         grouped[invoice] = {
           invoiceNumber: invoice,
@@ -150,7 +150,7 @@ const Billing: React.FC = () => {
       // Keep metadata from the most relevant/recent order in the group
       const existingDate = new Date(grouped[invoice].date).getTime();
       const thisDate = new Date(order?.orderDate ?? grouped[invoice].date).getTime();
-      
+
       if (thisDate > existingDate || !grouped[invoice].paymentDate) {
         grouped[invoice].date = order?.orderDate ?? grouped[invoice].date;
         grouped[invoice].representativeOrder = order;
@@ -173,9 +173,9 @@ const Billing: React.FC = () => {
         tempItems = tempItems.filter((item) => item.method === paymentMethodFilter);
       }
     } else {
-        if (statusFilter !== "all") {
-            tempItems = tempItems.filter((item) => item.status === statusFilter);
-        }
+      if (statusFilter !== "all") {
+        tempItems = tempItems.filter((item) => item.status === statusFilter);
+      }
     }
 
     // Sort by Date
@@ -230,7 +230,7 @@ const Billing: React.FC = () => {
         "Paid",
         selectedPaymentMethod
       );
-      
+
       showToast(`Payment recorded via ${selectedPaymentMethod}.`);
       setModalContent("receipt");
       setIsPaymentModalOpen(false);
@@ -271,8 +271,8 @@ const Billing: React.FC = () => {
     }
 
     const headers = activeTab === "receipts"
-        ? ["Receipt Number", "Customer Name", "Payment Date", "Total Amount", "Tax (18%)", "Grand Total", "Payment Method"]
-        : ["Invoice Number", "Customer Name", "Order Date", "Total Amount", "Tax (18%)", "Grand Total", "Payment Status", "Payment Method"];
+      ? ["Receipt Number", "Customer Name", "Payment Date", "Total Amount", "Tax (18%)", "Grand Total", "Payment Method"]
+      : ["Invoice Number", "Customer Name", "Order Date", "Total Amount", "Tax (18%)", "Grand Total", "Payment Status", "Payment Method"];
 
     const escapeCsvField = (field: any) => {
       const str = String(field || "");
@@ -327,18 +327,19 @@ const Billing: React.FC = () => {
   };
 
   return (
-    <div className="p-6 md:p-8">
+    <div className="p-4 md:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+      <div className="flex justify-between items-center mb-4 gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-200">
           Billing
         </h1>
         <button
           onClick={handleExportAllBilling}
-          className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+          className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-3 md:px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+          title={activeTab === "receipts" ? "Export All Receipts" : "Export All Invoices"}
         >
           <DownloadIcon className="w-5 h-5" />
-          {activeTab === "receipts" ? "Export All Receipts" : "Export All Invoices"}
+          <span className="hidden sm:inline">{activeTab === "receipts" ? "Export Receipts" : "Export Invoices"}</span>
         </button>
       </div>
 
@@ -351,7 +352,7 @@ const Billing: React.FC = () => {
             ${activeTab === "invoices"
                 ? "border-brand-primary text-brand-primary"
                 : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
-            }`}
+              }`}
           >
             Invoices
           </button>
@@ -361,7 +362,7 @@ const Billing: React.FC = () => {
             ${activeTab === "receipts"
                 ? "border-brand-primary text-brand-primary"
                 : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
-            }`}
+              }`}
           >
             Receipts
           </button>
@@ -371,15 +372,15 @@ const Billing: React.FC = () => {
       {/* Filter and Search */}
       <div className="flex flex-col md:flex-row gap-4 mb-4">
         <div className="relative flex-grow">
-             <input
-                type="search"
-                placeholder={activeTab === "invoices" ? "Search by invoice # or customer..." : "Search by receipt # or customer..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full px-4 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
-            />
+          <input
+            type="search"
+            placeholder={activeTab === "invoices" ? "Search by invoice # or customer..." : "Search by receipt # or customer..."}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full px-4 py-2 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
+          />
         </div>
-       
+
         {activeTab === "invoices" && (
           <select
             value={statusFilter}
@@ -405,10 +406,63 @@ const Billing: React.FC = () => {
         )}
       </div>
 
-      {/* Main Table */}
+      {/* Main Content */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden dark:bg-slate-800">
-        <div className="overflow-x-auto">
-          {filteredItems.length > 0 ? (
+        {filteredItems.length > 0 ? (
+          <>
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y dark:divide-slate-700">
+              {filteredItems.map((item) => {
+                const customer = customerMap.get(item.customerId);
+                const totalWithTax = (item.total * 1.18).toFixed(2);
+
+                return (
+                  <div key={item.invoiceNumber} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                            {activeTab === "invoices" ? item.invoiceNumber : item.invoiceNumber.replace("INV", "RCPT")}
+                          </h3>
+                          {activeTab === "invoices" && (
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${item.status === 'Paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>
+                              {item.status}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{customer?.name || "N/A"}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                          {activeTab === "invoices"
+                            ? new Date(item.date).toLocaleDateString()
+                            : (item.paymentDate ? new Date(item.paymentDate).toLocaleDateString() : "N/A")}
+                          {activeTab === "receipts" && ` • ${item.method}`}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-bold text-lg text-slate-800 dark:text-slate-100">₹{totalWithTax}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+                      <button
+                        onClick={() => {
+                          if (activeTab === "invoices") {
+                            handleViewInvoice(item.representativeOrder);
+                          } else {
+                            handleViewReceipt(item.representativeOrder);
+                          }
+                        }}
+                        className="text-sm font-semibold text-brand-primary hover:underline"
+                      >
+                        View {activeTab === "invoices" ? "Invoice" : "Receipt"} →
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
                 <thead className="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-300">
                   <tr>
@@ -417,7 +471,7 @@ const Billing: React.FC = () => {
                     </th>
                     <th scope="col" className="px-6 py-3">Customer</th>
                     <th scope="col" className="px-6 py-3">
-                        {activeTab === "invoices" ? "Date" : "Payment Date"}
+                      {activeTab === "invoices" ? "Date" : "Payment Date"}
                     </th>
                     <th scope="col" className="px-6 py-3 text-right">Amount</th>
                     {activeTab === "invoices" && <th scope="col" className="px-6 py-3 text-center">Status</th>}
@@ -437,36 +491,31 @@ const Billing: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">{customer?.name || "N/A"}</td>
                         <td className="px-6 py-4">
-                          {activeTab === "invoices" 
-                            ? new Date(item.date).toLocaleDateString() 
+                          {activeTab === "invoices"
+                            ? new Date(item.date).toLocaleDateString()
                             : (item.paymentDate ? new Date(item.paymentDate).toLocaleDateString() : "N/A")}
                         </td>
                         <td className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">
                           ₹{totalWithTax}
                         </td>
                         {activeTab === "invoices" && (
-                            <td className="px-6 py-4 text-center">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                ${item.status === 'Paid' 
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' 
-                                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
-                                }`}>
-                                {item.status}
+                          <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === 'Paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>
+                              {item.status}
                             </span>
-                            </td>
+                          </td>
                         )}
                         {activeTab === "receipts" && (
-                            <td className="px-6 py-4">{item.method}</td>
+                          <td className="px-6 py-4">{item.method}</td>
                         )}
                         <td className="px-6 py-4">
                           <button
                             onClick={() => {
-                                // If viewing invoice, open invoice view; if receipt, open receipt view
-                                if (activeTab === "invoices") {
-                                    handleViewInvoice(item.representativeOrder);
-                                } else {
-                                    handleViewReceipt(item.representativeOrder);
-                                }
+                              if (activeTab === "invoices") {
+                                handleViewInvoice(item.representativeOrder);
+                              } else {
+                                handleViewReceipt(item.representativeOrder);
+                              }
                             }}
                             className="font-medium text-brand-primary hover:underline"
                           >
@@ -478,17 +527,18 @@ const Billing: React.FC = () => {
                   })}
                 </tbody>
               </table>
-          ) : (
-            <div className="text-center py-16">
-              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
-                No {activeTab} Found
-              </h3>
-              <p className="text-slate-500 mt-2 dark:text-slate-400">
-                {searchQuery ? "Your search did not return any results." : "No records found."}
-              </p>
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className="text-center py-16 px-4">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+              No {activeTab} Found
+            </h3>
+            <p className="text-slate-500 mt-2 dark:text-slate-400">
+              {searchQuery ? "Your search did not return any results." : "No records found."}
+            </p>
+          </div>
+        )}
       </div>
 
       {viewingOrder && (
@@ -554,7 +604,7 @@ const Billing: React.FC = () => {
           )}
         </Modal>
       )}
-      
+
       <Modal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}

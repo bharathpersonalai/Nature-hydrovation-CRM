@@ -13,11 +13,10 @@ import {
 // Import Firestore helpers
 import { subscribeToCollection } from "../firebase/firestore";
 // Import DB instance and methods for Role Fetching
-import { db } from "../firebase/firebaseConfig"; 
+import { db } from "../firebase/firebaseConfig";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
-import { useUI } from "./UIContext";
-import { useAuth } from "./AuthContext"; // <--- Import Auth
+import { useAuth } from "./AuthContext";
 
 // Import Services
 import { useListService } from "../services/ListService";
@@ -37,7 +36,7 @@ export interface DataContextType {
   suppliers: string[];
   categories: ProductCategory[];
   brandingSettings: BrandingSettings;
-  
+
   // Auth State
   userRole: string | null; // <--- Admin/User Role
 
@@ -95,7 +94,7 @@ export const DataContextProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user } = useAuth(); // <--- Get current user
-  
+
   // State Declarations
   const [products, setProducts] = useState<Product[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -105,7 +104,7 @@ export const DataContextProvider: React.FC<{ children: React.ReactNode }> = ({
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [categories, setCategories] = useState<{ name: string; supplier: string }[]>([]);
   const [stockHistory, setStockHistory] = useState<StockHistoryEntry[]>([]);
-  
+
   // Role State
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -118,7 +117,7 @@ export const DataContextProvider: React.FC<{ children: React.ReactNode }> = ({
   // Branding and UI State
   const [viewingItem, setViewingItem] = useState<{ type: string; id: string } | null>(null);
   const clearViewingItem = useCallback(() => setViewingItem(null), []);
-  
+
   const brandingSettings: BrandingSettings = {
     companyName: "Nature Hydrovation",
     companyAddress: "Hyderabad",
@@ -131,38 +130,38 @@ export const DataContextProvider: React.FC<{ children: React.ReactNode }> = ({
   // --- 4. FETCH USER ROLE & CLEANUP (The "White Screen" Fix) ---
   useEffect(() => {
     if (!user) {
-        // If logged out, clear EVERYTHING to prevent crashes
-        setProducts([]);
-        setLeads([]);
-        setCustomers([]);
-        setOrders([]);
-        setReferrals([]);
-        setSuppliers([]);
-        setCategories([]);
-        setStockHistory([]);
-        setUserRole(null);
-        return;
+      // If logged out, clear EVERYTHING to prevent crashes
+      setProducts([]);
+      setLeads([]);
+      setCustomers([]);
+      setOrders([]);
+      setReferrals([]);
+      setSuppliers([]);
+      setCategories([]);
+      setStockHistory([]);
+      setUserRole(null);
+      return;
     }
 
     const fetchUserRole = async () => {
-    try {
+      try {
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
-        
+
         if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setUserRole(userData.role || 'user');
+          const userData = userDoc.data();
+          setUserRole(userData.role || 'user');
         } else {
-            // ✅ DON'T auto-create - User must be manually added to Firestore
-            console.warn('User document not found in Firestore. Access denied.');
-            setUserRole(null); // No role = no access
+          // ✅ DON'T auto-create - User must be manually added to Firestore
+          console.warn('User document not found in Firestore. Access denied.');
+          setUserRole(null); // No role = no access
         }
-    } catch (error) {
+      } catch (error) {
         console.error("Error fetching user role:", error);
         setUserRole(null); // Error = no access
-    }
-};
-   
+      }
+    };
+
 
     fetchUserRole();
   }, [user]);
@@ -297,7 +296,7 @@ export const DataContextProvider: React.FC<{ children: React.ReactNode }> = ({
 
     addOrder: orderService.addOrder,
     updateOrderStatus: orderService.updateOrderStatus,
-    updateInvoiceStatus: orderService.updateOrderStatus, 
+    updateInvoiceStatus: orderService.updateOrderStatus,
     markRewardAsPaid: orderService.markRewardAsPaid,
   };
 

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Order, PaymentMethod, Product, Customer, OrderResult } from '../types';
-import { addToCollection, updateDocument, addStockHistoryEntry } from '../firebase/firestore';
+import { addToCollection, updateDocument, addStockHistoryEntry, deleteDocument } from '../firebase/firestore';
 import { useUI } from '../contexts/UIContext';
 
 // This file contains all Order, Billing Status, and Referral Reward logic.
@@ -218,9 +218,33 @@ export const useOrderService = (orders: Order[], products: Product[], customers:
         }
     }, [showToast]);
 
+    // --- Delete Order ---
+    const deleteOrder = useCallback(async (orderId: string) => {
+        try {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) {
+                showToast('Order not found.', 'error');
+                return;
+            }
+
+            // Prevent deleting paid orders (stock has already been deducted)
+            if (order.paymentStatus === 'Paid') {
+                showToast('Cannot delete a paid order. Mark as unpaid first if needed.', 'warning');
+                return;
+            }
+
+            await deleteDocument('orders', orderId);
+            showToast('Order deleted successfully.', 'success');
+        } catch (err: any) {
+            console.error('[deleteOrder] error:', err);
+            showToast('Failed to delete order.', 'error');
+        }
+    }, [orders, showToast]);
+
     return {
         addOrder,
         updateOrderStatus,
         markRewardAsPaid,
+        deleteOrder,
     };
 };

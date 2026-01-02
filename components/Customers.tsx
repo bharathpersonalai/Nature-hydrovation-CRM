@@ -69,6 +69,7 @@ const Customers: React.FC = () => {
     clearViewingItem,
     addCustomer,
     updateCustomer,
+    deleteCustomer,
     addOrder,
     updateOrderStatus,
     referrals,
@@ -116,6 +117,10 @@ const Customers: React.FC = () => {
     string | null
   >("/slip.jpg");
   const slipContainerRef = useRef<HTMLDivElement>(null);
+
+  // Delete Confirmation States
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
 
   // Customer handlers
   const handleViewCustomer = (customer: Customer) => {
@@ -518,6 +523,10 @@ const Customers: React.FC = () => {
         customers={filteredCustomers}
         onView={handleViewCustomer}
         onEdit={handleOpenEditModal}
+        onDelete={(customerId) => {
+          setCustomerToDelete(customerId);
+          setIsConfirmDeleteOpen(true);
+        }}
       />
 
       {/* Add/Edit Customer Modal */}
@@ -966,6 +975,35 @@ const Customers: React.FC = () => {
               className="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-green-700 transition-colors"
             >
               Confirm Payment
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirm Delete Modal */}
+      <Modal isOpen={isConfirmDeleteOpen} onClose={() => setIsConfirmDeleteOpen(false)} title="Confirm Deletion">
+        <div>
+          <p className="text-slate-600 dark:text-slate-300">
+            Are you sure you want to delete this customer? This action cannot be undone.
+          </p>
+          <div className="flex justify-end pt-6 gap-2">
+            <button
+              onClick={() => setIsConfirmDeleteOpen(false)}
+              className="bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-300 transition-colors dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (customerToDelete) {
+                  deleteCustomer(customerToDelete);
+                }
+                setIsConfirmDeleteOpen(false);
+                setCustomerToDelete(null);
+              }}
+              className="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-red-700 transition-colors"
+            >
+              Delete
             </button>
           </div>
         </div>

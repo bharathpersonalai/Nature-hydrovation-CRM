@@ -32,7 +32,7 @@ export const useLeadService = (customers: Customer[]) => {
     const { showToast } = useUI();
     // We import customers array only for client-side validation, 
     // the Firestore listener in DataContext handles the source of truth.
-    
+
 
     // --- Lead Management ---
     const addLead = useCallback(async (leadData: Omit<Lead, 'id' | 'createdAt'>, referralCode?: string) => {
@@ -63,16 +63,16 @@ export const useLeadService = (customers: Customer[]) => {
                 followUpDate: leadData.followUpDate ?? null,
             };
 
-           const newId = await addToCollection('leads', payload);
-        showToast('Lead added successfully!', 'success');
-        // Return nothing (void) to match the DataContextType expectation
-    } catch (err) {
-        console.error('Failed to add lead:', err);
-        showToast('Failed to add lead', 'error');
-        // When using Promises, throwing the error is the correct way to end a 'void' promise if it fails
-        throw err; // IMPORTANT: Throw the error to satisfy the Promise<void> signature
-    }
-}, [customers, showToast]); 
+            const newId = await addToCollection('leads', payload);
+            showToast('Lead added successfully!', 'success');
+            // Return nothing (void) to match the DataContextType expectation
+        } catch (err) {
+            console.error('Failed to add lead:', err);
+            showToast('Failed to add lead', 'error');
+            // When using Promises, throwing the error is the correct way to end a 'void' promise if it fails
+            throw err; // IMPORTANT: Throw the error to satisfy the Promise<void> signature
+        }
+    }, [customers, showToast]);
 
     const updateLead = useCallback(async (lead: Lead) => {
         try {
@@ -186,7 +186,18 @@ export const useLeadService = (customers: Customer[]) => {
             showToast(msg, "error");
             throw err;
         }
-    }, [showToast]); 
+    }, [showToast]);
+
+    const deleteCustomer = useCallback(async (customerId: string) => {
+        try {
+            await deleteDocument('customers', customerId);
+            showToast('Customer deleted successfully.', 'success');
+        } catch (err: any) {
+            console.error('[deleteCustomer] error:', err);
+            showToast('Failed to delete customer.', 'error');
+            throw err;
+        }
+    }, [showToast]);
 
     return {
         addLead,
@@ -196,5 +207,6 @@ export const useLeadService = (customers: Customer[]) => {
         convertLeadToCustomer,
         addCustomer,
         updateCustomer,
+        deleteCustomer,
     };
 };

@@ -17,6 +17,7 @@ import {
   MailIcon,
   LinkIcon,
   ShareIcon,
+  TrashIcon,
 } from "./Icons";
 import html2canvas from 'html2canvas';
 
@@ -29,11 +30,12 @@ const Billing: React.FC = () => {
   const {
     orders,
     customers,
-    products, // Critical: Needed to look up product names for the receipt
+    products,
     brandingSettings,
     updateBrandingSettings,
     updateOrderStatus,
-    updateInvoiceStatus
+    updateInvoiceStatus,
+    deleteOrder,
   } = useData();
   const { showToast } = useUI();
 
@@ -51,6 +53,10 @@ const Billing: React.FC = () => {
   // Settings Modal State
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [tempSettings, setTempSettings] = useState<BrandingSettings | null>(null);
+
+  // Delete Confirmation States
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 
   const customerMap = useMemo(() => {
     return new Map(customers.map((c) => [c.id, c]));
@@ -585,6 +591,18 @@ const Billing: React.FC = () => {
                           >
                             View
                           </button>
+                          {activeTab === "invoices" && item.status === "Unpaid" && (
+                            <button
+                              onClick={() => {
+                                setOrderToDelete(item.representativeOrder.id);
+                                setIsConfirmDeleteOpen(true);
+                              }}
+                              className="ml-3 text-slate-400 hover:text-red-500 transition-colors"
+                              aria-label="Delete invoice"
+                            >
+                              <TrashIcon className="w-5 h-5" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -847,6 +865,35 @@ const Billing: React.FC = () => {
               className="bg-brand-primary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors"
             >
               Save Settings
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirm Delete Modal */}
+      <Modal isOpen={isConfirmDeleteOpen} onClose={() => setIsConfirmDeleteOpen(false)} title="Confirm Deletion">
+        <div>
+          <p className="text-slate-600 dark:text-slate-300">
+            Are you sure you want to delete this unpaid invoice? This action cannot be undone.
+          </p>
+          <div className="flex justify-end pt-6 gap-2">
+            <button
+              onClick={() => setIsConfirmDeleteOpen(false)}
+              className="bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-300 transition-colors dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (orderToDelete) {
+                  deleteOrder(orderToDelete);
+                }
+                setIsConfirmDeleteOpen(false);
+                setOrderToDelete(null);
+              }}
+              className="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-red-700 transition-colors"
+            >
+              Delete
             </button>
           </div>
         </div>

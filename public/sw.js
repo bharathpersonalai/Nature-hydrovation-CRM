@@ -1,5 +1,5 @@
 // Minimal Service Worker to allow PWA installation
-const CACHE_NAME = 'nh-crm-v2';
+const CACHE_NAME = 'nh-crm';
 const urlsToCache = [
     '/',
     '/index.html',

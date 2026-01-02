@@ -58,6 +58,7 @@ export interface DataContextType {
     referralCode?: string
   ) => Promise<void> | void;
   updateCustomer: (customer: Customer) => Promise<void> | void;
+  deleteCustomer: (customerId: string) => Promise<void>;
   addOrder: (newOrder: {
     customerId: string;
     items: { productId: string; quantity: number; discount: number }[];
@@ -74,6 +75,7 @@ export interface DataContextType {
     paymentMethod: string
   ) => Promise<void> | void;
   markRewardAsPaid: (referralId: string) => void;
+  deleteOrder: (orderId: string) => Promise<void>;
   addSupplier: (name: string) => void;
   updateSupplier: (oldName: string, newName: string) => void;
   removeSupplier: (name: string) => void;
@@ -315,11 +317,13 @@ export const DataContextProvider: React.FC<{ children: React.ReactNode }> = ({
     convertLeadToCustomer: leadService.convertLeadToCustomer,
     addCustomer: leadService.addCustomer,
     updateCustomer: leadService.updateCustomer,
+    deleteCustomer: leadService.deleteCustomer,
 
     addOrder: orderService.addOrder,
     updateOrderStatus: orderService.updateOrderStatus,
     updateInvoiceStatus: orderService.updateOrderStatus,
     markRewardAsPaid: orderService.markRewardAsPaid,
+    deleteOrder: orderService.deleteOrder,
   };
 
   return (

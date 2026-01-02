@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Customer } from '../../types';
-import { PencilIcon, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon } from '../Icons';
+import { PencilIcon, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon, TrashIcon } from '../Icons';
 
 type SortableKey = "name" | "email" | "phone" | "address" | "createdAt";
 
@@ -8,9 +8,10 @@ interface CustomerTableProps {
   customers: Customer[];
   onView: (customer: Customer) => void;
   onEdit: (customer: Customer) => void;
+  onDelete: (customerId: string) => void;
 }
 
-const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onView, onEdit }) => {
+const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onView, onEdit, onDelete }) => {
   const [sortConfig, setSortConfig] = useState<{
     key: SortableKey;
     direction: "ascending" | "descending";
@@ -115,6 +116,13 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onView, onEdit
                 >
                   <PencilIcon className="w-5 h-5" />
                 </button>
+                <button
+                  onClick={() => onDelete(customer.id)}
+                  className="p-2 text-slate-400 hover:text-red-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+                  aria-label="Delete customer"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
               </div>
             </div>
             {customer.address && (
@@ -179,6 +187,13 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, onView, onEdit
                       aria-label="Edit customer"
                     >
                       <PencilIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(customer.id)}
+                      className="text-slate-400 hover:text-red-500 transition-colors"
+                      aria-label="Delete customer"
+                    >
+                      <TrashIcon className="w-5 h-5" />
                     </button>
                   </div>
                 </td>

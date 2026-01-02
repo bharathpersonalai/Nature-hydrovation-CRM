@@ -5,6 +5,11 @@ import { useUI } from "../contexts/UIContext";
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -12,7 +17,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Product, Lead, Order } from "../types";
+import { Product, Lead, Order, LeadStatus } from "../types";
 import { RupeeIcon, UsersIcon, PackageIcon, AlertCircleIcon } from "./Icons";
 
 interface StatCardProps {
@@ -128,6 +133,43 @@ const Dashboard: React.FC = () => {
     }).length;
   }, [products]);
 
+  // Lead Conversion Funnel Data
+  const leadFunnelData = useMemo(() => {
+    return Object.values(LeadStatus).map((status) => ({
+      name: status,
+      count: leads.filter((l) => l.status === status).length,
+    }));
+  }, [leads]);
+
+  // Top Selling Products Data
+  const topProductsData = useMemo(() => {
+    const productSales: Record<string, number> = {};
+
+    orders
+      .filter((o) => o.paymentStatus === 'Paid')
+      .forEach((order: any) => {
+        if (Array.isArray(order.items) && order.items.length > 0) {
+          order.items.forEach((item: any) => {
+            // Try to resolve name from product catalog if missing in item
+            const product = products.find(p => p.id === item.productId);
+            const name = item.productName || product?.name || "Unknown Product";
+            const qty = Number(item.quantity || 0);
+            productSales[name] = (productSales[name] || 0) + qty;
+          });
+        } else {
+          const product = products.find(p => p.id === order.productId);
+          const name = (order as any).productName || product?.name || "Unknown Product";
+          const qty = Number(order.quantity || 0);
+          productSales[name] = (productSales[name] || 0) + qty;
+        }
+      });
+
+    return Object.entries(productSales)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5); // Top 5
+  }, [orders, products]);
+
   // ✅ FIXED: Prepare sales-by-day (only PAID orders)
   const salesData = useMemo(() => {
     const map: Record<string, number> = {};
@@ -155,6 +197,8 @@ const Dashboard: React.FC = () => {
     borderRadius: "0.5rem",
   };
 
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
   return (
     <div className="p-4 md:p-6 lg:p-8">
       <h1 className="text-2xl md:text-3xl font-bold text-slate-800 mb-6 dark:text-slate-200">
@@ -165,7 +209,7 @@ const Dashboard: React.FC = () => {
         <StatCard
           title="Total Revenue"
           value={currency(totalRevenue)}
-          description="Paid sales only"  /* ✅ UPDATED description */
+          description="Paid sales only"
           icon={
             <RupeeIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
           }
@@ -200,40 +244,90 @@ const Dashboard: React.FC = () => {
         />
       </div>
 
-      <section className="mt-8 bg-white p-6 rounded-lg shadow-sm dark:bg-slate-800">
-        <h2 className="text-xl font-semibold text-slate-800 mb-4 dark:text-slate-200">
-          Recent Sales Performance
-        </h2>
-        {(orders || []).filter(o => o.paymentStatus === 'Paid').length > 0 ? (  /* ✅ CHECK PAID ORDERS */
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        <section className="bg-white p-6 rounded-lg shadow-sm dark:bg-slate-800">
+          <h2 className="text-xl font-semibold text-slate-800 mb-4 dark:text-slate-200">
+            Recent Sales Performance
+          </h2>
+          {(orders || []).filter(o => o.paymentStatus === 'Paid').length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke={theme === "light" ? "#e2e8f0" : "#334155"}
+                />
+                <XAxis dataKey="name" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="sales"
+                  stroke="#0284c7"
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: "#0284c7" }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-center py-16">
+              <p className="text-slate-500 dark:text-slate-400">
+                No paid sales yet.
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section className="bg-white p-6 rounded-lg shadow-sm dark:bg-slate-800">
+          <h2 className="text-xl font-semibold text-slate-800 mb-4 dark:text-slate-200">
+            Lead Conversion Funnel
+          </h2>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-                stroke={theme === "light" ? "#e2e8f0" : "#334155"}
-              />
-              <XAxis dataKey="name" stroke="#94a3b8" />
+            <BarChart data={leadFunnelData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === "light" ? "#e2e8f0" : "#334155"} />
+              <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
               <YAxis stroke="#94a3b8" />
               <Tooltip contentStyle={tooltipStyle} />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="sales"
-                stroke="#0284c7"
-                strokeWidth={2}
-                dot={{ r: 4, fill: "#0284c7" }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
+              <Bar dataKey="count" fill="#f97316" radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
-        ) : (
-          <div className="text-center py-16">
-            <p className="text-slate-500 dark:text-slate-400">
-              No paid sales yet. Mark invoices as paid to see performance charts.  {/* ✅ UPDATED message */}
-            </p>
-          </div>
-        )}
-      </section>
+        </section>
+
+        <section className="bg-white p-6 rounded-lg shadow-sm dark:bg-slate-800 lg:col-span-2">
+          <h2 className="text-xl font-semibold text-slate-800 mb-4 dark:text-slate-200">
+            Top Selling Products (Qty)
+          </h2>
+          {topProductsData.length > 0 ? (
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={topProductsData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {topProductsData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={tooltipStyle} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <p className="text-slate-500 dark:text-slate-400">No product sales data yet.</p>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 };

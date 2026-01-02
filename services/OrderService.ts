@@ -59,6 +59,9 @@ export const useOrderService = (orders: Order[], products: Product[], customers:
             const serviceFee = newOrder.serviceFee || 0;
             const totalAmount = subtotal + tax + serviceFee;
 
+            // Generate a secure random token for sharing (approx 20 chars)
+            const shareToken = Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12);
+
             const orderPayload: any = {
                 customerId: newOrder.customerId,
                 items: itemsPayload,
@@ -68,6 +71,7 @@ export const useOrderService = (orders: Order[], products: Product[], customers:
                 orderDate,
                 paymentStatus: 'Unpaid',
                 createdAt: new Date().toISOString(),
+                shareToken,
             };
 
             // 3. Write order document to Firestore

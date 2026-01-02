@@ -36,6 +36,7 @@ export interface DataContextType {
   suppliers: string[];
   categories: ProductCategory[];
   brandingSettings: BrandingSettings;
+  updateBrandingSettings: (settings: BrandingSettings) => Promise<void>;
 
   // Auth State
   userRole: string | null; // <--- Admin/User Role
@@ -104,6 +105,16 @@ export const DataContextProvider: React.FC<{ children: React.ReactNode }> = ({
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [categories, setCategories] = useState<{ name: string; supplier: string }[]>([]);
   const [stockHistory, setStockHistory] = useState<StockHistoryEntry[]>([]);
+  const [brandingSettings, setBrandingSettings] = useState<BrandingSettings>({
+    companyName: "Nature Hydrovation",
+    companyAddress: "Hyderabad",
+    companyLogo: "",
+    brandColor: "#0284c7",
+    customField: "GST: 36BGXPS2557L1ZD",
+    footerNotes: "Thank you for your business!",
+    template: 'modern',
+    upiId: ''
+  });
 
   // Role State
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -118,16 +129,20 @@ export const DataContextProvider: React.FC<{ children: React.ReactNode }> = ({
   const [viewingItem, setViewingItem] = useState<{ type: string; id: string } | null>(null);
   const clearViewingItem = useCallback(() => setViewingItem(null), []);
 
-  const brandingSettings: BrandingSettings = {
-    companyName: "Nature Hydrovation",
-    companyAddress: "Hyderabad",
-    companyLogo: "",
-    brandColor: "#0284c7",
-    customField: "GST: 36BGXPS2557L1ZD",
-    footerNotes: "Thank you for your business!",
+  // Update Branding Function
+  const updateBrandingSettings = async (settings: BrandingSettings) => {
+    try {
+      if (!user) throw new Error("Not authenticated");
+      const settingsRef = doc(db, 'settings', 'branding');
+      await setDoc(settingsRef, settings, { merge: true });
+      setBrandingSettings(settings); // Optimistic update
+    } catch (error) {
+      console.error("Error updating branding settings:", error);
+      throw error;
+    }
   };
 
-  // --- 4. FETCH USER ROLE & CLEANUP (The "White Screen" Fix) ---
+  // --- 4. FETCH USER ROLE & BRANDING & CLEANUP (The "White Screen" Fix) ---
   useEffect(() => {
     if (!user) {
       // If logged out, clear EVERYTHING to prevent crashes
@@ -143,8 +158,9 @@ export const DataContextProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
-    const fetchUserRole = async () => {
+    const loadInitialData = async () => {
       try {
+        // Fetch User Role
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
 
@@ -152,18 +168,23 @@ export const DataContextProvider: React.FC<{ children: React.ReactNode }> = ({
           const userData = userDoc.data();
           setUserRole(userData.role || 'user');
         } else {
-          // ✅ DON'T auto-create - User must be manually added to Firestore
           console.warn('User document not found in Firestore. Access denied.');
-          setUserRole(null); // No role = no access
+          setUserRole(null);
+        }
+
+        // Fetch Branding Settings
+        const brandingDocRef = doc(db, 'settings', 'branding');
+        const brandingDoc = await getDoc(brandingDocRef);
+        if (brandingDoc.exists()) {
+          setBrandingSettings(brandingDoc.data() as BrandingSettings);
         }
       } catch (error) {
-        console.error("Error fetching user role:", error);
-        setUserRole(null); // Error = no access
+        console.error("Error loading initial data:", error);
+        setUserRole(null);
       }
     };
 
-
-    fetchUserRole();
+    loadInitialData();
   }, [user]);
 
   // --- 5. Real-Time Listeners (With Safety Guards) ---
@@ -269,6 +290,7 @@ export const DataContextProvider: React.FC<{ children: React.ReactNode }> = ({
     suppliers,
     categories,
     brandingSettings,
+    updateBrandingSettings,
     userRole, // <--- Exposed Role
     viewingItem,
     setViewingItem,

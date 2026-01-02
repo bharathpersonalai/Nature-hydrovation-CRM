@@ -5,7 +5,7 @@ import { Customer, BrandingSettings } from '../types';
 interface InvoiceLineItem {
     id: string;
     productName: string;
-    quantity: number; 
+    quantity: number;
     salePrice: number;
     discount: number;
     invoiceNumber: string;
@@ -18,9 +18,9 @@ interface ReceiptProps {
     brandingSettings: BrandingSettings;
 }
 
-const Receipt: React.FC<ReceiptProps> = ({ orders, customer, brandingSettings }) => { 
+const Receipt: React.FC<ReceiptProps> = ({ orders, customer, brandingSettings }) => {
     // 1. Safe Calculation of Totals (Prevents NaN)
-    const subtotal = orders.reduce((sum, item) => { 
+    const subtotal = orders.reduce((sum, item) => {
         const qty = Number(item.quantity) || 0;
         const price = Number(item.salePrice) || 0;
         const discount = Number(item.discount) || 0;
@@ -35,6 +35,8 @@ const Receipt: React.FC<ReceiptProps> = ({ orders, customer, brandingSettings })
     const invoiceMeta = orders.length > 0 ? orders[0] : { invoiceNumber: '-', orderDate: '' };
     const receiptNumber = invoiceMeta.invoiceNumber ? invoiceMeta.invoiceNumber.replace('INV', 'RCPT') : 'RCPT-####';
     const displayDate = invoiceMeta.orderDate ? new Date(invoiceMeta.orderDate).toLocaleDateString() : new Date().toLocaleDateString();
+
+    const isModern = brandingSettings.template === 'modern';
 
     return (
         <>
@@ -81,7 +83,10 @@ const Receipt: React.FC<ReceiptProps> = ({ orders, customer, brandingSettings })
                 }
             `}</style>
 
-            <div id="receipt-section-content" className="bg-white p-8 max-w-xl mx-auto text-slate-800 font-mono border-2 border-dashed border-slate-300">
+            <div
+                id="receipt-section-content"
+                className={`bg-white p-8 max-w-xl mx-auto text-slate-800 ${isModern ? 'font-sans border border-slate-200 shadow-sm' : 'font-mono border-2 border-dashed border-slate-300'}`}
+            >
                 {/* Header */}
                 <div className="text-center mb-6 border-b-2 border-slate-200 pb-4">
                     <h2 className="text-2xl font-bold uppercase tracking-widest text-slate-900">{brandingSettings.companyName}</h2>

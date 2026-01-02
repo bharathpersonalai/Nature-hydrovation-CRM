@@ -48,7 +48,7 @@ export enum PaymentMethod {
 }
 
 export interface Order {
-  id:string;
+  id: string;
   customerId: string;
   productId: string;
   productName: string;
@@ -56,12 +56,13 @@ export interface Order {
   salePrice: number;
   discount?: number;
   serviceFee?: number;  // ✅ ADD THIS
-  orderDate: string;  
+  orderDate: string;
   invoiceNumber: string;
-  totalAmount: number; 
+  totalAmount: number;
   paymentStatus: 'Paid' | 'Unpaid';
   paymentDate?: string;
   paymentMethod?: PaymentMethod;
+  shareToken?: string;
 }
 
 export interface Customer {
@@ -106,13 +107,14 @@ export interface BrandingSettings {
   brandColor: string;
   customField: string;
   footerNotes: string;
+  template?: 'classic' | 'modern';
+  upiId?: string;
 }
 
 export interface OrderResult {
-    success: boolean;
-    message: string;
-    order?: Order;
-    newReferralCode?: string;
-    error?: any;
+  success: boolean;
+  message: string;
+  order?: Order;
+  newReferralCode?: string;
+  error?: any;
 }
- 

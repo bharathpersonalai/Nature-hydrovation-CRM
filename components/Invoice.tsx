@@ -30,17 +30,20 @@ const Invoice: React.FC<InvoiceProps> = ({ orders, customer, brandingSettings })
     const grandTotal = subtotal + tax;
 
     const invoiceMeta = orders.length > 0 ? orders[0] : { invoiceNumber: '-', orderDate: '' };
+    const isModern = brandingSettings.template === 'modern';
 
     return (
-        <div id="invoice-section-content" className="bg-white p-8 max-w-4xl mx-auto text-slate-800 font-sans">
-            <div className="flex justify-between items-start border-b border-slate-200 pb-6 mb-6">
+        <div
+            id="invoice-section-content"
+            className={`bg-white p-8 max-w-4xl mx-auto text-slate-800 font-sans ${isModern ? '' : 'grayscale'}`}
+        >
+            <div className={`flex justify-between items-start border-b ${isModern ? 'border-brand-primary pb-6 mb-6' : 'border-slate-800 pb-4 mb-4'}`}>
                 <div>
-                    {/* ✅ CHANGED: Invoice → Invoice / Estimate */}
-                    <h1 className="text-4xl font-bold text-slate-800 uppercase tracking-wide">Invoice / Estimate</h1>
+                    <h1 className={`text-4xl font-bold uppercase tracking-wide ${isModern ? 'text-brand-primary' : 'text-slate-900'}`}>Invoice</h1>
                     <p className="text-slate-500 mt-1">#{invoiceMeta.invoiceNumber}</p>
                 </div>
                 <div className="text-right">
-                    <h2 className="text-xl font-bold text-brand-primary">{brandingSettings.companyName}</h2>
+                    <h2 className={`text-xl font-bold ${isModern ? 'text-slate-800' : 'text-black'}`}>{brandingSettings.companyName}</h2>
                     <p className="text-sm text-slate-500 whitespace-pre-line">{brandingSettings.companyAddress}</p>
                     {brandingSettings.customField && <p className="text-sm text-slate-500 mt-1 font-medium">{brandingSettings.customField}</p>}
                 </div>
@@ -69,7 +72,7 @@ const Invoice: React.FC<InvoiceProps> = ({ orders, customer, brandingSettings })
             <div className="mb-8">
                 <table className="w-full text-sm">
                     <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200">
+                        <tr className={`${isModern ? 'bg-slate-50 border-b border-slate-200' : 'border-b-2 border-slate-800'}`}>
                             <th className="py-3 px-4 text-left font-semibold text-slate-600">Item</th>
                             <th className="py-3 px-4 text-right font-semibold text-slate-600">Qty</th>
                             <th className="py-3 px-4 text-right font-semibold text-slate-600">Rate</th>
@@ -97,28 +100,39 @@ const Invoice: React.FC<InvoiceProps> = ({ orders, customer, brandingSettings })
                 </table>
             </div>
 
-            <div className="flex justify-end mb-8">
+            <div className="flex justify-between items-end mb-8">
+                {/* QR Code Section */}
+                <div>
+                    {brandingSettings.upiId && (
+                        <div className="text-center">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Scan to Pay</p>
+                            <img
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=upi://pay?pa=${brandingSettings.upiId}&pn=${encodeURIComponent(brandingSettings.companyName)}&am=${grandTotal.toFixed(2)}&tn=Invoice${invoiceMeta.invoiceNumber}`}
+                                alt="UPI QR Code"
+                                className="w-24 h-24 border border-slate-200 p-1 rounded"
+                            />
+                            <p className="text-xs text-slate-500 mt-1">UPI: {brandingSettings.upiId}</p>
+                        </div>
+                    )}
+                </div>
+
                 <div className="w-64 space-y-2">
                     <div className="flex justify-between text-sm text-slate-600">
                         <span>Subtotal</span>
                         <span>₹{subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm text-slate-600">
-                        {/* ✅ CHANGED: Tax (18%) → Tax (GST 18%) */}
                         <span>Tax (GST 18%)</span>
                         <span>₹{tax.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-lg font-bold text-slate-800 border-t border-slate-200 pt-2 mt-2">
-                        {/* ✅ CHANGED: Total → Estimated Total */}
-                        <span>Estimated Total</span>
+                    <div className={`flex justify-between text-lg font-bold text-slate-800 border-t pt-2 mt-2 ${isModern ? 'border-slate-200' : 'border-slate-800'}`}>
+                        <span>Total Amount</span>
                         <span>₹{grandTotal.toFixed(2)}</span>
                     </div>
                 </div>
             </div>
 
-            <div className="border-t border-slate-200 pt-6 text-center">
-                {/* ✅ CHANGED: Added estimate note */}
-                <p className="text-sm text-slate-600 font-medium mb-2">This is an estimated quotation for your reference.</p>
+            <div className={`border-t pt-6 text-center ${isModern ? 'border-slate-200' : 'border-slate-800'}`}>
                 <p className="text-sm text-slate-500">{brandingSettings.footerNotes}</p>
                 <p className="text-xs text-slate-400 mt-2">Thank you for your business!</p>
             </div>
@@ -127,4 +141,3 @@ const Invoice: React.FC<InvoiceProps> = ({ orders, customer, brandingSettings })
 };
 
 export default Invoice;
- 

@@ -14,6 +14,7 @@ import {
   BellIcon,
   AlertTriangleIcon,
   XCircleIcon,
+  CellPhoneIcon,
 } from "../components/Icons";
 import Dashboard from "../components/Dashboard";
 import Inventory from "../components/Inventory";
@@ -156,6 +157,27 @@ const MainLayout: React.FC = () => {
   // Sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
+
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   // Use centralized admin check from config
   const isAdmin = isAdminEmail(user?.email);
@@ -356,7 +378,17 @@ const MainLayout: React.FC = () => {
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
+          {deferredPrompt && (
+            <button
+              onClick={handleInstallClick}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors text-white bg-brand-primary hover:bg-brand-dark animate-pulse shadow-md mb-2"
+            >
+              <CellPhoneIcon className="w-5 h-5" />
+              <span>Install App</span>
+            </button>
+          )}
+
           <button
             onClick={toggleTheme}
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"

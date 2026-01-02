@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
-import { Order, Customer, PaymentMethod } from '../types';
+import { Order, Customer, PaymentMethod, BrandingSettings } from '../types';
 import Modal from './Modal';
 import Invoice from "./Invoice";
 import Receipt from "./Receipt";
@@ -13,6 +13,10 @@ import {
   ReceiptIcon,
   DownloadIcon,
   SearchIcon,
+  WhatsAppIcon,
+  MailIcon,
+  LinkIcon,
+  ShareIcon,
 } from "./Icons";
 import html2canvas from 'html2canvas';
 
@@ -27,6 +31,7 @@ const Billing: React.FC = () => {
     customers,
     products, // Critical: Needed to look up product names for the receipt
     brandingSettings,
+    updateBrandingSettings,
     updateOrderStatus,
     updateInvoiceStatus
   } = useData();
@@ -42,6 +47,10 @@ const Billing: React.FC = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [orderToPay, setOrderToPay] = useState<Order | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CreditCard);
+
+  // Settings Modal State
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [tempSettings, setTempSettings] = useState<BrandingSettings | null>(null);
 
   const customerMap = useMemo(() => {
     return new Map(customers.map((c) => [c.id, c]));
@@ -264,6 +273,46 @@ const Billing: React.FC = () => {
     }
   };
 
+  const handleSharePdf = async (order: Order, type: "invoice" | "receipt") => {
+    const element = document.getElementById(`${type}-section-content`);
+    if (!element) return;
+
+    if (!navigator.share) {
+      showToast("Web Share API is not supported in your browser. Downloading instead.", "warning");
+      handleDocumentAction("pdf", order, type);
+      return;
+    }
+
+    try {
+      const opt = {
+        margin: 0.5,
+        filename: `${type === "invoice" ? "Invoice" : "Receipt"}-${order.invoiceNumber}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+      };
+
+      const pdfBlob = await html2pdf().from(element).set(opt).output('blob');
+      const file = new File([pdfBlob], `${type}-${order.invoiceNumber}.pdf`, { type: 'application/pdf' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `${type === "invoice" ? "Invoice" : "Receipt"} #${order.invoiceNumber}`,
+          text: `Here is your ${type} #${order.invoiceNumber}`,
+          files: [file],
+        });
+        showToast("Shared successfully!", "success");
+      } else {
+        showToast("Sharing files isn't supported by this browser. Downloading instead.", "warning");
+        handleDocumentAction("pdf", order, type);
+      }
+
+    } catch (error) {
+      console.error("Error sharing PDF:", error);
+      showToast("An error occurred while trying to share.", "error");
+    }
+  };
+
   const handleExportAllBilling = () => {
     if (filteredItems.length === 0) {
       showToast(`No ${activeTab} data to export.`, "error");
@@ -333,14 +382,29 @@ const Billing: React.FC = () => {
         <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-200">
           Billing
         </h1>
-        <button
-          onClick={handleExportAllBilling}
-          className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-3 md:px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
-          title={activeTab === "receipts" ? "Export All Receipts" : "Export All Invoices"}
-        >
-          <DownloadIcon className="w-5 h-5" />
-          <span className="hidden sm:inline">{activeTab === "receipts" ? "Export Receipts" : "Export Invoices"}</span>
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setTempSettings(brandingSettings);
+              setIsSettingsModalOpen(true);
+            }}
+            className="flex items-center gap-2 bg-slate-200 text-slate-700 font-semibold py-2 px-3 md:px-4 rounded-lg shadow-sm hover:bg-slate-300 transition-colors dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            title="Invoice Settings"
+          >
+            <span className="hidden sm:inline">Settings</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+            </svg>
+          </button>
+          <button
+            onClick={handleExportAllBilling}
+            className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-3 md:px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+            title={activeTab === "receipts" ? "Export All Receipts" : "Export All Invoices"}
+          >
+            <DownloadIcon className="w-5 h-5" />
+            <span className="hidden sm:inline">{activeTab === "receipts" ? "Export Receipts" : "Export Invoices"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -548,45 +612,95 @@ const Billing: React.FC = () => {
           title={modalContent === "invoice" ? `Invoice ${viewingOrder.invoiceNumber}` : `Receipt ${viewingOrder.invoiceNumber.replace("INV", "RCPT")}`}
           size="2xl"
           footer={
-            <>
+            <div className="flex flex-wrap items-center gap-2 w-full">
+              {/* Left side - Share buttons */}
+              <div className="flex items-center gap-1 mr-auto">
+                {(() => {
+                  const customer = getCustomerForOrder(viewingOrder);
+                  const invoiceUrl = `${window.location.origin}/invoice/${viewingOrder.shareToken || viewingOrder.invoiceNumber}`;
+                  const message = `Hi ${customer?.name || 'there'}! Your invoice ${viewingOrder.invoiceNumber} is ready.\nView here: ${invoiceUrl}`;
+                  const phone = customer?.phone?.replace(/\D/g, '') || '';
+                  const whatsappUrl = `https://wa.me/${phone.startsWith('91') ? phone : '91' + phone}?text=${encodeURIComponent(message)}`;
+                  const emailUrl = `mailto:${customer?.email || ''}?subject=Invoice ${viewingOrder.invoiceNumber}&body=${encodeURIComponent(message)}`;
+
+                  return (
+                    <>
+                      {customer?.phone && (
+                        <a
+                          href={whatsappUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                          title="Share via WhatsApp"
+                        >
+                          <WhatsAppIcon className="w-5 h-5" />
+                        </a>
+                      )}
+                      {customer?.email && (
+                        <a
+                          href={emailUrl}
+                          className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                          title="Share via Email"
+                        >
+                          <MailIcon className="w-5 h-5" />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(invoiceUrl);
+                          showToast('Invoice link copied to clipboard!');
+                        }}
+                        className="p-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 transition-colors"
+                        title="Copy Link"
+                      >
+                        <LinkIcon className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleSharePdf(viewingOrder, modalContent)}
+                        className="p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                        title="Share PDF"
+                      >
+                        <ShareIcon className="w-5 h-5" />
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+
+              {/* Right side - Action buttons */}
               {viewingOrder.paymentStatus === "Paid" && (
                 <button
                   onClick={() => setModalContent(modalContent === "invoice" ? "receipt" : "invoice")}
-                  className="mr-auto flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+                  className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm"
                 >
-                  {modalContent === "invoice" ? <ReceiptIcon className="w-5 h-5" /> : <FileTextIcon className="w-5 h-5" />}
-                  {modalContent === "invoice" ? "View Receipt" : "View Invoice"}
+                  {modalContent === "invoice" ? <ReceiptIcon className="w-4 h-4" /> : <FileTextIcon className="w-4 h-4" />}
+                  <span className="hidden sm:inline">{modalContent === "invoice" ? "Receipt" : "Invoice"}</span>
                 </button>
               )}
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-300 transition-colors dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500"
-              >
-                Close
-              </button>
               {viewingOrder.paymentStatus === "Unpaid" && modalContent === "invoice" && (
                 <button
                   onClick={() => handleOpenPaymentModal(viewingOrder)}
-                  className="flex items-center gap-2 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-green-700 transition-colors"
+                  className="flex items-center gap-2 bg-green-600 text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-green-700 transition-colors text-sm"
                 >
-                  <CheckCircleIcon className="w-5 h-5" />
-                  Mark as Paid
+                  <CheckCircleIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Mark Paid</span>
                 </button>
               )}
               <button
                 onClick={() => handleDocumentAction("pdf", viewingOrder, modalContent)}
-                className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+                className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm"
               >
-                <PdfIcon className="w-5 h-5" /> Download PDF
+                <PdfIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">PDF</span>
               </button>
               <button
                 onClick={() => handleDocumentAction("print", viewingOrder, modalContent)}
-                className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors"
+                className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-brand-dark transition-colors text-sm"
               >
-                <PrinterIcon className="w-5 h-5" /> {modalContent === "invoice" ? "Print Invoice" : "Print Receipt"}
+                <PrinterIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Print</span>
               </button>
-            </>
+            </div>
           }
         >
           {modalContent === "invoice" ? (
@@ -639,6 +753,100 @@ const Billing: React.FC = () => {
               className="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-green-700 transition-colors"
             >
               Confirm Payment
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Settings Modal */}
+      <Modal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        title="Invoice Settings"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Company Name</label>
+            <input
+              type="text"
+              value={tempSettings?.companyName || ''}
+              onChange={(e) => setTempSettings(prev => prev ? { ...prev, companyName: e.target.value } : null)}
+              className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Address</label>
+            <textarea
+              value={tempSettings?.companyAddress || ''}
+              onChange={(e) => setTempSettings(prev => prev ? { ...prev, companyAddress: e.target.value } : null)}
+              className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
+              rows={3}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Brand Color</label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="color"
+                  value={tempSettings?.brandColor || '#0284c7'}
+                  onChange={(e) => setTempSettings(prev => prev ? { ...prev, brandColor: e.target.value } : null)}
+                  className="h-9 w-12 p-1 bg-white border border-slate-300 rounded-md shadow-sm cursor-pointer"
+                />
+                <span className="text-sm text-slate-500">{tempSettings?.brandColor}</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Template</label>
+              <select
+                value={tempSettings?.template || 'modern'}
+                onChange={(e) => setTempSettings(prev => prev ? { ...prev, template: e.target.value as 'modern' | 'classic' } : null)}
+                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
+              >
+                <option value="modern">Modern</option>
+                <option value="classic">Classic</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">UPI ID (for QR Code)</label>
+            <input
+              type="text"
+              placeholder="e.g. 9876543210@upi"
+              value={tempSettings?.upiId || ''}
+              onChange={(e) => setTempSettings(prev => prev ? { ...prev, upiId: e.target.value } : null)}
+              className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
+            />
+            <p className="text-xs text-slate-500 mt-1">Provide your UPI ID to show a QR code on invoices.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Footer Note</label>
+            <input
+              type="text"
+              value={tempSettings?.footerNotes || ''}
+              onChange={(e) => setTempSettings(prev => prev ? { ...prev, footerNotes: e.target.value } : null)}
+              className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200"
+            />
+          </div>
+
+          <div className="flex justify-end pt-4 gap-2">
+            <button
+              onClick={() => setIsSettingsModalOpen(false)}
+              className="bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-300 transition-colors dark:bg-slate-600 dark:text-slate-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (tempSettings) {
+                  updateBrandingSettings(tempSettings);
+                  setIsSettingsModalOpen(false);
+                  showToast("Branding settings updated!");
+                }
+              }}
+              className="bg-brand-primary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors"
+            >
+              Save Settings
             </button>
           </div>
         </div>

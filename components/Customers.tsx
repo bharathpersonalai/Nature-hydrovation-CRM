@@ -16,6 +16,9 @@ import {
   PdfIcon,
   ReceiptIcon,
   ShareIcon,
+  WhatsAppIcon,
+  MailIcon,
+  LinkIcon,
 } from "./Icons";
 
 // Import new components
@@ -338,6 +341,55 @@ const Customers: React.FC = () => {
     utilHandleDocumentAction(action, order, type);
   };
 
+  const handleSharePdf = async (order: Order, type: "invoice" | "receipt") => {
+    const element = document.getElementById(`${type === "invoice" ? "invoice" : "receipt"}-section-content`);
+    // Note: the logic in Customers.tsx for element ID might differ.
+    // In Billing.tsx I used `${type}-section-content`.
+    // Let's check Invoice.tsx and Receipt.tsx.
+    // Receipt.tsx uses id="receipt-section-content".
+    // Invoice.tsx likely uses id="invoice-section-content".
+    // Wait, let me double check Invoice.tsx file content if I can... 
+    // I haven't seen Invoice.tsx content. But Receipt.tsx has `receipt-section-content`.
+    // I'll assume they follow pattern.
+    if (!element) return;
+
+    if (!navigator.share) {
+      showToast("Web Share API is not supported in your browser. Downloading instead.", "warning");
+      handleDocumentAction("pdf", order, type);
+      return;
+    }
+
+    try {
+      const opt = {
+        margin: 0.5,
+        filename: `${type === "invoice" ? "Invoice" : "Receipt"}-${order.invoiceNumber}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+      };
+
+      const pdfBlob = await html2pdf().from(element).set(opt).output('blob');
+      const file = new File([pdfBlob], `${type}-${order.invoiceNumber}.pdf`, { type: 'application/pdf' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `${type === "invoice" ? "Invoice" : "Receipt"} #${order.invoiceNumber}`,
+          text: `Here is your ${type} #${order.invoiceNumber}`,
+          files: [file],
+        });
+        showToast("Shared successfully!", "success");
+      } else {
+        showToast("Sharing files isn't supported by this browser. Downloading instead.", "warning");
+        handleDocumentAction("pdf", order, type);
+      }
+
+    } catch (error) {
+      console.error("Error sharing PDF:", error);
+      showToast("An error occurred while trying to share.", "error");
+    }
+  };
+
+
   const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -515,80 +567,171 @@ const Customers: React.FC = () => {
           }
           footer={
             customerModalView === "viewInvoice" && viewingOrder ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setCustomerModalView("details")}
-                  className="bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-300 transition-colors dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500"
-                >
-                  Back to Details
-                </button>
+              <div className="flex flex-wrap items-center gap-2 w-full">
+                {/* Share buttons */}
+                <div className="flex items-center gap-1 mr-auto">
+                  {(() => {
+                    const invoiceUrl = `${window.location.origin}/invoice/${viewingOrder.shareToken || viewingOrder.invoiceNumber}`;
+                    const message = `Hi ${selectedCustomer?.name || 'there'}! Your invoice ${viewingOrder.invoiceNumber} is ready.\nView here: ${invoiceUrl}`;
+                    const phone = selectedCustomer?.phone?.replace(/\D/g, '') || '';
+                    const whatsappUrl = `https://wa.me/${phone.startsWith('91') ? phone : '91' + phone}?text=${encodeURIComponent(message)}`;
+                    const emailUrl = `mailto:${selectedCustomer?.email || ''}?subject=Invoice ${viewingOrder.invoiceNumber}&body=${encodeURIComponent(message)}`;
+
+                    return (
+                      <>
+                        {selectedCustomer?.phone && (
+                          <a
+                            href={whatsappUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                            title="Share via WhatsApp"
+                          >
+                            <WhatsAppIcon className="w-5 h-5" />
+                          </a>
+                        )}
+                        {selectedCustomer?.email && (
+                          <a
+                            href={emailUrl}
+                            className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                            title="Share via Email"
+                          >
+                            <MailIcon className="w-5 h-5" />
+                          </a>
+                        )}
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(invoiceUrl);
+                            showToast('Invoice link copied to clipboard!');
+                          }}
+                          className="p-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 transition-colors"
+                          title="Copy Link"
+                        >
+                          <LinkIcon className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleSharePdf(viewingOrder, "invoice")}
+                          className="p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                          title="Share PDF"
+                        >
+                          <ShareIcon className="w-5 h-5" />
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Action buttons */}
                 {viewingOrder.paymentStatus === "Unpaid" ? (
                   <button
                     onClick={() => handleOpenPaymentModal(viewingOrder)}
-                    className="flex items-center gap-2 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-green-700 transition-colors"
+                    className="flex items-center gap-2 bg-green-600 text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-green-700 transition-colors text-sm"
                   >
-                    <CheckCircleIcon className="w-5 h-5" />
-                    Mark as Paid
+                    <CheckCircleIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Mark Paid</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => setCustomerModalView("viewReceipt")}
-                    className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-blue-700 transition-colors"
+                    className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm"
                   >
-                    <ReceiptIcon className="w-5 h-5" />
-                    View Receipt
+                    <ReceiptIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Receipt</span>
                   </button>
                 )}
                 <button
-                  onClick={() =>
-                    handleDocumentAction("pdf", viewingOrder, "invoice")
-                  }
-                  className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+                  onClick={() => handleDocumentAction("pdf", viewingOrder, "invoice")}
+                  className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm"
                 >
-                  <PdfIcon className="w-5 h-5" /> Download PDF
+                  <PdfIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">PDF</span>
                 </button>
                 <button
-                  onClick={() =>
-                    handleDocumentAction("print", viewingOrder, "invoice")
-                  }
-                  className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors"
+                  onClick={() => handleDocumentAction("print", viewingOrder, "invoice")}
+                  className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-brand-dark transition-colors text-sm"
                 >
-                  <PrinterIcon className="w-5 h-5" /> Print Invoice
+                  <PrinterIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Print</span>
                 </button>
-              </>
+              </div>
             ) : customerModalView === "viewReceipt" && viewingOrder ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setCustomerModalView("details")}
-                  className="bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-300 transition-colors dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500"
-                >
-                  Back to Details
-                </button>
+              <div className="flex flex-wrap items-center gap-2 w-full">
+                {/* Share buttons */}
+                <div className="flex items-center gap-1 mr-auto">
+                  {(() => {
+                    const invoiceUrl = `${window.location.origin}/invoice/${viewingOrder.shareToken || viewingOrder.invoiceNumber}`;
+                    const message = `Hi ${selectedCustomer?.name || 'there'}! Your invoice ${viewingOrder.invoiceNumber} is ready.\nView here: ${invoiceUrl}`;
+                    const phone = selectedCustomer?.phone?.replace(/\D/g, '') || '';
+                    const whatsappUrl = `https://wa.me/${phone.startsWith('91') ? phone : '91' + phone}?text=${encodeURIComponent(message)}`;
+                    const emailUrl = `mailto:${selectedCustomer?.email || ''}?subject=Invoice ${viewingOrder.invoiceNumber}&body=${encodeURIComponent(message)}`;
+
+                    return (
+                      <>
+                        {selectedCustomer?.phone && (
+                          <a
+                            href={whatsappUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                            title="Share via WhatsApp"
+                          >
+                            <WhatsAppIcon className="w-4 h-4" />
+                          </a>
+                        )}
+                        {selectedCustomer?.email && (
+                          <a
+                            href={emailUrl}
+                            className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                            title="Share via Email"
+                          >
+                            <MailIcon className="w-4 h-4" />
+                          </a>
+                        )}
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(invoiceUrl);
+                            showToast('Invoice link copied to clipboard!');
+                          }}
+                          className="p-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 transition-colors"
+                          title="Copy Link"
+                        >
+                          <LinkIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleSharePdf(viewingOrder, "receipt")}
+                          className="p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                          title="Share PDF"
+                        >
+                          <ShareIcon className="w-4 h-4" />
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Action buttons */}
                 <button
                   onClick={() => setCustomerModalView("viewInvoice")}
-                  className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+                  className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm"
                 >
-                  <FileTextIcon className="w-5 h-5" /> View Invoice
+                  <FileTextIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Invoice</span>
                 </button>
                 <button
-                  onClick={() =>
-                    handleDocumentAction("pdf", viewingOrder, "receipt")
-                  }
-                  className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+                  onClick={() => handleDocumentAction("pdf", viewingOrder, "receipt")}
+                  className="flex items-center gap-2 bg-slate-600 text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-slate-700 transition-colors text-sm"
                 >
-                  <PdfIcon className="w-5 h-5" /> Download PDF
+                  <PdfIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">PDF</span>
                 </button>
                 <button
-                  onClick={() =>
-                    handleDocumentAction("print", viewingOrder, "receipt")
-                  }
-                  className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:bg-brand-dark transition-colors"
+                  onClick={() => handleDocumentAction("print", viewingOrder, "receipt")}
+                  className="flex items-center gap-2 bg-brand-primary text-white font-semibold py-2 px-3 rounded-lg shadow-sm hover:bg-brand-dark transition-colors text-sm"
                 >
-                  <PrinterIcon className="w-5 h-5" /> Print Receipt
+                  <PrinterIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Print</span>
                 </button>
-              </>
+              </div>
             ) : customerModalView === "viewReferralSlip" &&
               viewingReferralSlip ? (
               <>
@@ -638,8 +781,8 @@ const Customers: React.FC = () => {
                       <button
                         onClick={() => setActiveCustomerTab("orders")}
                         className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeCustomerTab === "orders"
-                            ? "border-brand-primary text-brand-primary"
-                            : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
+                          ? "border-brand-primary text-brand-primary"
+                          : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
                           }`}
                       >
                         Order History
@@ -647,8 +790,8 @@ const Customers: React.FC = () => {
                       <button
                         onClick={() => setActiveCustomerTab("payments")}
                         className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeCustomerTab === "payments"
-                            ? "border-brand-primary text-brand-primary"
-                            : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
+                          ? "border-brand-primary text-brand-primary"
+                          : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
                           }`}
                       >
                         Payment History
@@ -656,8 +799,8 @@ const Customers: React.FC = () => {
                       <button
                         onClick={() => setActiveCustomerTab("referrals")}
                         className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeCustomerTab === "referrals"
-                            ? "border-brand-primary text-brand-primary"
-                            : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
+                          ? "border-brand-primary text-brand-primary"
+                          : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600"
                           }`}
                       >
                         Referrals

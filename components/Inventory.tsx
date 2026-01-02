@@ -13,7 +13,7 @@ const emptyProduct = {
     costPrice: 0,
     sellingPrice: 0,
     quantity: 0,
-    lowStockThreshold: '', // Default to empty as requested
+    lowStockThreshold: '',
     imageUrl: '',
 };
 
